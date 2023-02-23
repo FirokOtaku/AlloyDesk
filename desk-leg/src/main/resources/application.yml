@@ -1,0 +1,55 @@
+firok:
+  spring:
+    dbsculptor:
+      enable: true
+    mvci:
+      runtime:
+        enable-mapper-config: true
+    alloydesk:
+      folder-cache: ./alloy-desk-cache
+      folder-model: ./alloy-desk-model
+      path-mmdetection: mmdetection
+
+
+server:
+  port: 29116
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+  compression:
+    enabled: true
+  server-header: Alloy Furnace
+  tomcat:
+    max-http-form-post-size: 200MB
+
+logging:
+  file:
+    path: ./ally-desk-log/
+  logback:
+    rollingpolicy:
+      clean-history-on-start: true
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/alloy-desk?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf8&allowMultiQueries=true&zeroDateTimeBehavior=convertToNull
+    username: root
+    password: root
+    type: com.zaxxer.hikari.HikariDataSource
+    hikari:
+      minimum-idle: 5
+      idle-timeout: 600000
+      maximum-pool-size: 10
+      auto-commit: true
+      pool-name: HikariCorePool
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: select * from information_schema.tables limit 1
+  #  web:
+  #    resources:
+  #      static-locations:
+  mvc:
+    servlet:
+      load-on-startup: 100
+#    static-path-pattern: /static/**
+#    initialization-mode: always

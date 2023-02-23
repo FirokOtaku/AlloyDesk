@@ -1,0 +1,121 @@
+.middle-align {
+    display: flex;
+    align-items: center !important;
+}
+.bottom-align {
+    display: flex;
+    align-items: flex-end !important;
+}
+.top-align {
+    display: flex;
+    align-items: flex-start !important;
+}
+.left-align {
+    text-align: left;
+    justify-content: flex-start !important;
+}
+.right-align {
+    text-align: right;
+    justify-content: flex-end !important;
+}
+.center-align {
+    text-align: center;
+    justify-content: center !important;
+}
+.small-text {
+    font-size: 60%;
+}
+.large-text
+{
+    font-size: 140%;
+}
+
+.no-margin {
+    margin: 0 !important;
+}
+.tiny-margin {
+    padding: 0.25rem !important;
+}
+.small-margin {
+    margin: 0.5rem !important;
+}
+.medium-margin,
+.margin {
+    margin: 1rem !important;
+}
+.large-margin {
+    margin: 1.5rem !important;
+}
+
+.no-padding {
+    padding: 0 !important;
+}
+.tiny-padding {
+    padding: 0.25rem !important;
+}
+.small-padding {
+    padding: 0.5rem !important;
+}
+.medium-padding,
+.padding {
+    padding: 1rem !important;
+}
+.large-padding {
+    padding: 1.5rem !important;
+}
+
+.tiny-space:not(nav, .row, .grid, table) {
+    height: 0.5rem;
+}
+.space:not(nav, .row, .grid, table),
+.small-space:not(nav, .row, .grid, table) {
+    height: 1rem;
+}
+.medium-space:not(nav, .row, .grid, table) {
+    height: 2rem;
+}
+.large-space:not(nav, .row, .grid, table) {
+    height: 3rem;
+}
+
+.no-opacity {
+    opacity: 0;
+}
+.opacity {
+    opacity: 1;
+}
+
+.scroll {
+    overflow: auto;
+}
+.no-scroll {
+    overflow: hidden;
+}
+
+.divider,
+.small-divider,
+.medium-divider,
+.large-divider {
+    border-bottom: 0.0625rem solid dimgray;
+    display: block;
+    margin: 0 !important;
+}
+.medium-divider {
+    margin: 1rem 0 !important;
+}
+.large-divider {
+    margin: 1.5rem 0 !important;
+}
+.small-divider {
+    margin: 0.5rem 0 !important;
+}
+
+.responsive {
+    max-width: 75rem;
+    padding: 32px;
+    margin: auto;
+}
+
+.d-inline { display: inline }
+.d-block { display: block }
+.d-inline-block { display: inline-block }
