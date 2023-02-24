@@ -6,7 +6,7 @@ firok:
       runtime:
         enable-mapper-config: true
     alloydesk:
-      folder-cache: ./alloy-desk-cache
+      folder-dataset: ./alloy-desk-dataset
       folder-model: ./alloy-desk-model
       path-mmdetection: mmdetection
 

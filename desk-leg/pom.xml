@@ -10,7 +10,7 @@
     </parent>
     <groupId>firok.spring.alloydesk</groupId>
     <artifactId>desk-leg</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <name>desk-leg</name>
     <description>desk-leg</description>
     <properties>
@@ -79,8 +79,14 @@
         <dependency>
             <groupId>firok.tool</groupId>
             <artifactId>labelstudio-connector</artifactId>
-            <version>0.5.0</version>
+            <version>0.6.0</version>
         </dependency>
+        <dependency>
+            <groupId>firok.tool</groupId>
+            <artifactId>alloy-wrench</artifactId>
+            <version>0.26.0</version>
+        </dependency>
+
 
         <dependency>
             <groupId>com.github.oshi</groupId>

@@ -30,7 +30,7 @@ public enum DatasetStatusEnum
 	Logical("logical"),
 	;
 
-	@JsonValue
+//	@JsonValue
 	public final String value;
 	DatasetStatusEnum(String value)
 	{

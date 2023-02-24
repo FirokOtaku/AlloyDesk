@@ -6,38 +6,38 @@ import firok.spring.mvci.MVCIntrospective;
 import lombok.Data;
 
 /**
- * 标签数据
+ * mmdetection 模型信息
  * */
 @Data
 @MVCIntrospective
-@TableName("d_tag")
+@TableName("d_model")
 @Dubnium(sculpturalScript = """
-        create table if not exists d_tag (
+        create table if not exists d_model (
             id varchar(48) not null,
             create_timestamp timestamp not null,
             create_user_id varchar(48) not null,
             
-            tag_type varchar(32),
-            target_id varchar(48),
-            tag_value varchar(64),
+            display_name varchar(128),
+            model_type varchar(32),
+            source_task_id varchar(48),
             
-            primary key (id)
+            primary key(id)
         );
         """)
-public class TagBean extends BaseBean
+public class ModelBean extends BaseBean
 {
 	/**
-	 * 标签类型
+	 * 显示名称
 	 * */
-	TagTypeEnum tagType;
+	String displayName;
 
 	/**
-	 * 标签所属目标 id
+	 * 模型类型
 	 * */
-	String targetId;
+	FrameworkTypeEnum modelType;
 
 	/**
-	 * 标签数据
+	 * 相关训练任务 id
 	 * */
-	String tagValue;
+	String sourceTaskId;
 }

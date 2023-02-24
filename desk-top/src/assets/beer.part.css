@@ -23,7 +23,7 @@
     justify-content: center !important;
 }
 .small-text {
-    font-size: 60%;
+    font-size: 60% !important;
 }
 .large-text
 {
@@ -92,6 +92,12 @@
     overflow: hidden;
 }
 
+.material-icons
+{
+    content: none;
+    user-select: none;
+}
+
 .divider,
 .small-divider,
 .medium-divider,
@@ -119,3 +125,4 @@
 .d-inline { display: inline }
 .d-block { display: block }
 .d-inline-block { display: inline-block }
+.d-none { display: none }

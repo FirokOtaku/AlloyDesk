@@ -45,7 +45,7 @@ import TabDataSourceManagement from "@/components/TabDataSourceManagement.vue"
 import TabDatasetManagement from "@/components/TabDatasetManagement.vue";
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.DatasetManagement)
+const currentTab = ref(Tabs.ModelManagement)
 function openTab(tab)
 {
 	isLeftPanelOpen.value = false

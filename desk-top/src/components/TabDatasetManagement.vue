@@ -6,12 +6,22 @@
 <div>
 	<div class="right-align">
 		<w-input class="d-inline text-left small-margin"
-		         placeholder="过滤名称"></w-input>
-		<w-select :items="[]" class="d-inline">
+		         v-model="inFilterDatasetName"
+		         @update:model-value="triggerRefreshDataset">
+			过滤名称
+		</w-input>
+		<w-select :items="listStatus" :return-object="false"
+		          v-model="inFilterDatasetStatus"
+		          @update:model-value="triggerRefreshDataset"
+		          class="d-inline"
+		          item-label-key="name"
+		          item-value-key="key"
+		          item-color-key="colorText"
+		          :multiple="true">
 			过滤状态
 		</w-select>
 
-		<w-button class="small-margin" :disabled="isRefreshingDataset" @click="refreshDataset">
+		<w-button class="small-margin" :disabled="isRefreshingDataset" @click="triggerRefreshDataset">
 			刷新
 		</w-button>
 
@@ -27,15 +37,55 @@
 		         :items="tableModel.items" fixed-headers
 		         :loading="isRefreshingDataset"
 		         style="min-height: 350px">
+			<template #item-cell.content="{ item, label, header, index }">
+				<span v-if="item.status === 'Pulling' "></span>
+
+				<div v-else>
+					<div v-if="item.annotationCount >= 0 && item.pictureCount >= 0">
+						<div>
+							<i class="material-icons small-text">collections_bookmarks</i> <span>{{ item.annotationCount }}</span>
+						</div>
+						<div>
+							<i class="material-icons small-text">collections_bookmarks</i> <span>{{ item.annotationCount }}</span>
+						</div>
+					</div>
+					<span v-else>
+						错误
+					</span>
+				</div>
+			</template>
+
+			<template #item-cell.status="{ item, label, header, index }">
+				<template v-for="status in listStatus">
+					<span v-if="status.key === item.status" :style="{ color: status.colorText }">
+						{{ status.name }}
+					</span>
+				</template>
+			</template>
+
 			<template #item-cell.op="{ item, label, header, index }">
+				<w-button class="small-margin">
+					查看
+				</w-button>
+
 				<w-button class="small-margin">
 					编辑
 				</w-button>
 
+<!--				<w-tooltip left v-if="item.status === 'Ready'">-->
+<!--					<template #activator="{ on }">-->
+<!--						<w-button class="ma1" v-on="on">-->
+<!--							回收-->
+<!--						</w-button>-->
+<!--					</template>-->
+<!--					删除图片和标注数据, 回收磁盘空间-->
+<!--				</w-tooltip>-->
+
 				<w-confirm class="d-inline-block"
 				           bg-color="error"
 				           question="确认删除?"
-				           cancel="删除" confirm="取消">
+				           v-if="item.status !== 'Pulling'"
+				           cancel="删除" confirm="取消" @cancel="deleteDataset(item)">
 					删除
 				</w-confirm>
 			</template>
@@ -126,9 +176,10 @@
 
 <script setup>
 
-import { ref, onMounted } from "vue";
-import WaveUI from "wave-ui";
-import {get, post} from "@/components/networks";
+import { ref, onMounted } from "vue"
+import WaveUI from "wave-ui"
+import {get, post} from "@/components/networks"
+import {debounce} from "@/components/debounce"
 
 const isRefreshingDataset = ref(false)
 const tableModel = ref({
@@ -142,6 +193,15 @@ const tableModel = ref({
 	],
 	items: [],
 })
+const inFilterDatasetName = ref('')
+const inFilterDatasetStatus = ref([])
+const listStatus = ref([
+	{ key: 'Pulling', name: '拉取中', colorText: '#0066ff' },
+	{ key: 'Ready', name: '就绪', colorText: '#22bb00' },
+	{ key: 'Occupied', name: '使用中', colorText: '#4400ff' },
+	{ key: 'Broken', name: '损坏', colorText: '#ff1111' },
+	{ key: 'Logical', name: '仅存档', colorText: '#ff7700' },
+])
 async function refreshDataset()
 {
 	if(isRefreshingDataset.value) return
@@ -152,6 +212,7 @@ async function refreshDataset()
 		const storage = tableModel.value.items
 		const raw = await get({
 			url: '/dataset/list-all',
+			params: { name: inFilterDatasetName.value, status: [...inFilterDatasetStatus.value] },
 		})
 		const listDataset = raw['records']
 		for(const dataset of listDataset)
@@ -170,6 +231,10 @@ async function refreshDataset()
 	{
 		isRefreshingDataset.value = false
 	}
+}
+function triggerRefreshDataset()
+{
+	debounce(refreshDataset, 1000)()
 }
 
 const Placeholder = {isPlaceholder: true, labelDisplay: '未选择'}
@@ -211,7 +276,7 @@ const listSourceDataset = ref([])
 const selectedDataset = ref('')
 async function refreshSourceDataset()
 {
-	if(selectedSource.value.isPlaceholder || isRefreshingSourceDataset.value) return
+	if(selectedSource.value == null || selectedSource.value.isPlaceholder || isRefreshingSourceDataset.value) return
 	isRefreshingSourceDataset.value = true
 
 	const sourceId = selectedSource.value
@@ -235,6 +300,8 @@ async function refreshSourceDataset()
 	catch (any)
 	{
 		WaveUI.instance.notify('无法读取数据源', 'error', 5000)
+		listSourceDataset.value.splice(0, listSourceDataset.value.length)
+		selectedDataset.value = ''
 	}
 	finally
 	{
@@ -249,6 +316,7 @@ const inDescription = ref('')
 async function btnPullDatasetModal()
 {
 	if(isRequestingPulling.value || !isDisplayPullDatasetModal.value ||
+		selectedSource.value == null ||
 		selectedSource.value.isPlaceholder) return
 
 	isRequestingPulling.value = true
@@ -260,6 +328,13 @@ async function btnPullDatasetModal()
 
 	try
 	{
+		const lenNameDisplay = nameDisplay.length
+		if(lenNameDisplay <= 0 || lenNameDisplay > 64)
+			throw '显示名称为空或过长'
+		const lenDesc = description.length
+		if(lenDesc > 128)
+			throw '描述过长'
+
 		await post({
 			url: '/dataset/pull',
 			params: { sourceId, projectId },
@@ -270,12 +345,34 @@ async function btnPullDatasetModal()
 	}
 	catch (any)
 	{
-		WaveUI.instance.notify('创建拉取任务失败', 'error', 5000)
+		WaveUI.instance.notify('创建拉取任务失败: ' + any, 'error', 5000)
 	}
 	finally
 	{
 		isRequestingPulling.value = false
+		await refreshDataset()
 	}
+}
+
+async function deleteDataset(item)
+{
+	try
+	{
+		await get({
+			url: '/dataset/delete',
+			params: { id: item.id },
+		})
+		WaveUI.instance.notify('删除成功', 'success', 3000)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('删除失败', 'error', 5000)
+	}
+	finally
+	{
+		await refreshDataset()
+	}
+
 }
 
 onMounted(() => {

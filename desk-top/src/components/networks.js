@@ -4,6 +4,21 @@ import axios from "axios"
 axios.defaults.baseURL = import.meta.env.DEV ?
     'http://localhost:29116/' :
     '/'
+axios.interceptors.request.use(
+    function (config)
+    {
+        if (config != null && config.params != null)
+        {
+            config.url += '?' + qs.stringify(config.params, {indices: false})
+            config.params = undefined
+        }
+        return config
+    },
+    function (error)
+    {
+        return Promise.reject(error);
+    }
+);
 
 function handleJavaRet(config)
 {
@@ -18,6 +33,12 @@ function handleJavaRet(config)
             })
     })
 }
+import qs from 'qs'
+function paramsSerializer (params)
+{
+    return qs.stringify(params, { indices: false } )
+}
+
 
 const DefaultGetConfig = { method: 'get' }
 function get(config = {})
