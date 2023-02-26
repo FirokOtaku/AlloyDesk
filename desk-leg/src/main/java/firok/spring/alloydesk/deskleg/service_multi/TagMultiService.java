@@ -19,22 +19,28 @@ public class TagMultiService
 	public Map<String, Set<String>> getTagValues(TagTypeEnum type, Collection<String> targetIds)
 	{
 		var qwTagId = new QueryWrapper<TagBean>().lambda()
-				.select(TagBean::getTagValue)
+				.select(TagBean::getTargetId, TagBean::getTagValue)
 				.eq(TagBean::getTagType, type)
 				.in(TagBean::getTargetId, targetIds);
 		var list = service.list(qwTagId);
 		return firok.topaz.general.Collections.mappingKeyMultiValueSet(
 				list,
-				TagBean::getId,
+				TagBean::getTargetId,
 				TagBean::getTagValue
 		);
 	}
 
+	public void setTagValues(String targetId, TagTypeEnum type, String... values)
+	{
+		setTagValues(targetId, type, values == null || values.length == 0 ? null : Arrays.asList(values));
+	}
 	public void setTagValues(String targetId, TagTypeEnum type, Collection<String> values)
 	{
 		var qw = new QueryWrapper<TagBean>().lambda()
+				.eq(TagBean::getTagType, type)
 				.eq(TagBean::getTargetId, targetId);
 		service.remove(qw);
+		if(values == null || values.isEmpty()) return;
 		var now = new Date();
 		var beans = values.stream().map(value -> {
 			var bean = new TagBean();

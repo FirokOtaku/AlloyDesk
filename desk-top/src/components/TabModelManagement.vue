@@ -28,7 +28,26 @@
 	<w-table :headers="tableModel.headers"
 	         :items="tableModel.items" fixed-headers
 	         :loading="isRefreshingModel"
-	         style="height: 250px">
+	         style="min-height: 250px">
+		<template #item-cell.tags="{ item, label, header, index }">
+			<template v-for="tag in item.tags">
+				<w-tag
+					:model-value="true"
+					:outline="true"
+					color="primary" style="margin-right: 6px">
+					{{ tag }}
+				</w-tag>
+			</template>
+		</template>
+
+		<template #item-cell.op="{ item, label, header, index }">
+			<w-confirm class="d-inline-block"
+			           bg-color="error"
+			           question="确认删除?"
+			           cancel="删除" confirm="取消" @cancel="deleteModel(item)">
+				删除
+			</w-confirm>
+		</template>
 	</w-table>
 
 	<w-overlay :model-value="isDisplayUploadModelModal" :persistent="true">
@@ -103,18 +122,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import {onMounted, ref} from 'vue'
 import {debounce} from "@/components/debounce";
 import {get, post} from "@/components/networks";
 import WaveUI from "wave-ui";
 
 const tableModel = ref({
 	headers: [
-		{ label: '名称', key: '' },
-		{ label: '标签', key: '' },
-		{ label: '类型', key: '' },
-		{ label: '源', key: '' },
-		{ label: '操作', key: '' },
+		{ label: '名称', key: 'displayName' },
+		{ label: '标签', key: 'tags' },
+		{ label: '类型', key: 'modelType' },
+		{ label: '操作', key: 'op' },
 	],
 	items: [],
 })
@@ -135,7 +153,14 @@ async function refreshModel()
 			url: '/model/search',
 			params: { keywordName: inFilterName.value, keywordTag: inFilterTag.value },
 		})
-		temp.push(...(result?.page?.records ?? []))
+		let list = result?.page?.records ?? []
+		for(const model of list)
+		{
+			const id = model.id
+			if(id == null) continue
+			model.tags = result?.mapModelTags[id] ?? []
+		}
+		temp.push(...list)
 	}
 	catch (any)
 	{
@@ -154,7 +179,7 @@ function triggerRefreshModel()
 	debounce(refreshModel, 1000)()
 }
 
-const isDisplayUploadModelModal = ref(true)
+const isDisplayUploadModelModal = ref(false)
 const inUploadModelFile = ref(null)
 const inUploadModelName = ref('')
 const inUploadModelTagTemp = ref('')
@@ -178,23 +203,24 @@ async function uploadModalConfirm()
 	if(isUploadingModel.value) return
 	isUploadingModel.value = true
 
-	const file = inUploadModelFile.value
+	const file = inUploadModelFile.value[0]
 	const name = inUploadModelName.value
-	const tags = inUploadModelTag.value
-
+	const tags = [...inUploadModelTag.value]
 	try
 	{
+		const form = new FormData()
+		form.append('file', file.file)
 		await post({
 			url: '/model/upload',
 			params: { name, tags, },
-			data: { file, },
+			data: form,
 		})
 		WaveUI.instance.notify('上传成功', 'success', 3000)
 		isDisplayUploadModelModal.value = false
 	}
 	catch (any)
 	{
-		WaveUI.instance.notify('上传失败', 'error', 5000)
+		WaveUI.instance.notify('上传失败: ' + any, 'error', 5000)
 	}
 	finally
 	{
@@ -202,5 +228,27 @@ async function uploadModalConfirm()
 		await refreshModel()
 	}
 }
+
+async function deleteModel(model)
+{
+	try
+	{
+		await get({
+			url: '/model/delete',
+			params: { id: model.id },
+		})
+		WaveUI.instance.notify('删除成功', 'success', 3000)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('删除失败: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		await refreshModel()
+	}
+}
+
+onMounted(() => refreshModel())
 
 </script>

@@ -26,7 +26,7 @@ function handleJavaRet(config)
         axios(config)
             .then(({ data }) => {
                 if(data.success) resolve(data.data)
-                else throw data.message
+                else reject(data.msg)
             })
             .catch(err => {
                 reject(err)

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import firok.spring.alloydesk.deskleg.bean.FrameworkTypeEnum;
 import firok.spring.alloydesk.deskleg.bean.ModelBean;
+import firok.spring.alloydesk.deskleg.bean.TagBean;
 import firok.spring.alloydesk.deskleg.bean.TagTypeEnum;
 import firok.spring.alloydesk.deskleg.service_multi.TagMultiService;
 import firok.topaz.spring.Ret;
@@ -17,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -31,6 +33,9 @@ public class ModelController
 	IService<ModelBean> serviceModel;
 	@Autowired
 	TagMultiService serviceTag;
+
+	@Autowired
+	IService<TagBean> serviceTagRaw;
 
 	@Value("${firok.spring.alloydesk.folder-model}")
 	File folderModelStorage;
@@ -49,17 +54,41 @@ public class ModelController
 	{
 		var paramPage = new Page<ModelBean>(pageIndex, pageSize);
 
+		// 根据名称过滤模型查询 id
 		var qwModelId = new QueryWrapper<ModelBean>().lambda()
 				.select(ModelBean::getId)
-				.like(ModelBean::getDisplayName, keywordName);
+				.like(keywordName != null && !keywordName.isBlank(), ModelBean::getDisplayName, keywordName);
 		var setModelId = serviceModel.list(qwModelId).stream()
 				.map(ModelBean::getId)
 				.collect(Collectors.toSet());
 
 		if(sizeOf(setModelId) == 0)
 			return Ret.success(new SearchResult(paramPage, new HashMap<>()));
+
+		final Set<String> setModelTagId;
+		if(keywordTag != null && !keywordTag.isBlank()) // 查询这些模型有什么 tag
+		{
+			var qwModelTagId = new QueryWrapper<TagBean>().lambda()
+					.select(TagBean::getTargetId)
+					.eq(TagBean::getTagType, TagTypeEnum.ModelTag)
+					.like(TagBean::getTagValue, keywordTag)
+					.in(TagBean::getTargetId, setModelId);
+			setModelTagId = serviceTagRaw.list(qwModelTagId).stream()
+					.map(TagBean::getTargetId)
+					.collect(Collectors.toSet());
+		}
 		else
-			return Ret.success(new SearchResult(paramPage, serviceTag.getTagValues(TagTypeEnum.ModelTag, setModelId)));
+			setModelTagId = setModelId;
+
+
+		if(sizeOf(setModelTagId) == 0)
+			return Ret.success(new SearchResult(paramPage, new HashMap<>()));
+
+		// 查询最终结果
+		var qwFinal = new QueryWrapper<ModelBean>().lambda()
+				.in(ModelBean::getId, setModelTagId);
+		var finalPage = serviceModel.page(paramPage, qwFinal);
+		return Ret.success(new SearchResult(finalPage, serviceTag.getTagValues(TagTypeEnum.ModelTag, setModelTagId)));
 	}
 
 	/**
@@ -70,43 +99,43 @@ public class ModelController
 	@PostMapping("/upload")
 	public Ret<?> upload(
 			@RequestParam("name") String name,
-			@RequestParam("tags") String[] tags,
+			@RequestParam(value = "tags", required = false) String[] tags,
 			@RequestPart("file")MultipartFile file
 			)
 	{
-		var id = UUID.randomUUID().toString();
 		var now = new Date();
 		var bean = new ModelBean();
-		bean.setId(id);
 		bean.setDisplayName(name);
 		bean.setModelType(FrameworkTypeEnum.Mmdetection);
 		bean.setCreateUserId(""); // todo
 		bean.setCreateTimestamp(now);
 		bean.setSourceTaskId(null);
 
-		var fileModel = new File(folderModelStorage, id + ".model.bin");
-
-		try(
-				var ifs = file.getInputStream();
-				var ofs = new FileOutputStream(fileModel)
-		)
-		{
-			ifs.transferTo(ofs);
-		}
-		catch (Exception any)
-		{
-			return Ret.fail("无法保存模型文件");
-		}
-
+		final String id;
 		try
 		{
 			serviceModel.save(bean);
-			serviceTag.setTagValues(id, TagTypeEnum.ModelTag, Arrays.asList(tags));
+			id = bean.getId();
+			serviceTag.setTagValues(id, TagTypeEnum.ModelTag, tags);
 		}
 		catch (Exception any)
 		{
-			fileModel.delete();
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 			return Ret.fail("无法创建数据库记录");
+		}
+
+		File fileModel = null;
+		try
+		{
+			fileModel = new File(folderModelStorage, id + ".model.bin").getCanonicalFile();
+			fileModel.getParentFile().mkdirs();
+			fileModel.createNewFile();
+			file.transferTo(fileModel);
+		}
+		catch (IOException any)
+		{
+			var ignored = fileModel != null ? fileModel.delete() : null;
+			return Ret.fail("无法保存模型文件");
 		}
 
 		return Ret.success();
@@ -133,6 +162,7 @@ public class ModelController
 		{
 			fileModel.delete();
 			serviceModel.removeById(id);
+			serviceTag.setTagValues(id, TagTypeEnum.ModelTag);
 			return Ret.success();
 		}
 		catch (Exception any)
