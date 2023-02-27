@@ -7,11 +7,13 @@
 
 	<div class="right-align">
 		<w-input class="d-inline text-left small-margin"
-		         @change="triggerRefreshModel">
+		         v-model="inFilterName"
+		         @update:model-value="triggerRefreshModel">
 			过滤名称
 		</w-input>
 		<w-input class="d-inline text-left small-margin"
-		         @change="triggerRefreshModel">
+		         v-model="inFilterTag"
+		         @update:model-value="triggerRefreshModel">
 			过滤标签
 		</w-input>
 		<w-button @click="triggerRefreshModel">
@@ -41,6 +43,10 @@
 		</template>
 
 		<template #item-cell.op="{ item, label, header, index }">
+			<w-button class="small-margin" @click="$emit('pop-pallet', Object.assign({ palletType: 'model' }, item))">
+				暂存
+			</w-button>
+
 			<w-confirm class="d-inline-block"
 			           bg-color="error"
 			           question="确认删除?"
@@ -123,7 +129,7 @@
 
 <script setup>
 import {onMounted, ref} from 'vue'
-import {debounce} from "@/components/debounce";
+import {debounce} from "@/components/util";
 import {get, post} from "@/components/networks";
 import WaveUI from "wave-ui";
 
@@ -149,9 +155,11 @@ async function refreshModel()
 	const temp = []
 	try
 	{
+		const name = inFilterName.value
+		const tag = inFilterTag.value
 		let result = await get({
 			url: '/model/search',
-			params: { keywordName: inFilterName.value, keywordTag: inFilterTag.value },
+			params: { keywordName: name, keywordTag: tag },
 		})
 		let list = result?.page?.records ?? []
 		for(const model of list)

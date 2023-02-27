@@ -72,6 +72,10 @@
 					编辑
 				</w-button>
 
+				<w-button class="small-margin" @click="$emit('pop-pallet', Object.assign({ palletType: 'dataset' }, item))">
+					暂存
+				</w-button>
+
 <!--				<w-tooltip left v-if="item.status === 'Ready'">-->
 <!--					<template #activator="{ on }">-->
 <!--						<w-button class="ma1" v-on="on">-->
@@ -179,7 +183,7 @@
 import { ref, onMounted } from "vue"
 import WaveUI from "wave-ui"
 import {get, post} from "@/components/networks"
-import {debounce} from "@/components/debounce"
+import {debounce} from "@/components/util"
 
 const isRefreshingDataset = ref(false)
 const tableModel = ref({
@@ -379,6 +383,10 @@ onMounted(() => {
 	refreshDataset()
 	refreshDataSource()
 })
+
+defineEmits([
+	'pop-pallet'
+])
 
 
 </script>

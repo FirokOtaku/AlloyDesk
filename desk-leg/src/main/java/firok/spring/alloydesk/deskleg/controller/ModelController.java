@@ -7,6 +7,7 @@ import firok.spring.alloydesk.deskleg.bean.FrameworkTypeEnum;
 import firok.spring.alloydesk.deskleg.bean.ModelBean;
 import firok.spring.alloydesk.deskleg.bean.TagBean;
 import firok.spring.alloydesk.deskleg.bean.TagTypeEnum;
+//import firok.spring.alloydesk.deskleg.mapper.ModelMultiMapper;
 import firok.spring.alloydesk.deskleg.service_multi.TagMultiService;
 import firok.topaz.spring.Ret;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +37,9 @@ public class ModelController
 
 	@Autowired
 	IService<TagBean> serviceTagRaw;
+
+//	@Autowired
+//	ModelMultiMapper mapper;
 
 	@Value("${firok.spring.alloydesk.folder-model}")
 	File folderModelStorage;
@@ -89,6 +93,12 @@ public class ModelController
 				.in(ModelBean::getId, setModelTagId);
 		var finalPage = serviceModel.page(paramPage, qwFinal);
 		return Ret.success(new SearchResult(finalPage, serviceTag.getTagValues(TagTypeEnum.ModelTag, setModelTagId)));
+
+//		var page = new Page<ModelBean>(pageIndex, pageSize);
+//		mapper.searchModel(page, keywordName, keywordTag);
+//		var setId = page.getRecords().stream().map(ModelBean::getId).collect(Collectors.toSet());
+//		var map = serviceTag.getTagValues(TagTypeEnum.ModelTag, setId);
+//		return Ret.success(new SearchResult(page, map));
 	}
 
 	/**

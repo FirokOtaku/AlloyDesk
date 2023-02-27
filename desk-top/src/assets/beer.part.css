@@ -94,8 +94,8 @@
 
 .material-icons
 {
-    content: none;
     user-select: none;
+    font-variant-ligatures: normal !important;
 }
 
 .divider,
@@ -122,7 +122,14 @@
     margin: auto;
 }
 
-.d-inline { display: inline }
-.d-block { display: block }
-.d-inline-block { display: inline-block }
-.d-none { display: none }
+.select-none
+{
+    user-select: none
+}
+
+.d-inline { display: inline !important }
+.d-block { display: block !important }
+.d-inline-block { display: inline-block !important }
+.d-none { display: none !important }
+
+.c-hand { cursor: pointer !important }
