@@ -14,25 +14,25 @@ import java.util.*;
 @MVCIntrospective
 @TableName("d_dataset")
 @Dubnium(sculpturalScript = """
-        create table if not exists d_dataset (
-            id varchar(48) not null,
-            create_timestamp timestamp not null,
-            create_user_id varchar(48) not null,
-            
-            name_display varchar(64),
-            description varchar(128),
-            status varchar(16),
-            pull_source_id varchar(48),
-            pull_source_project_id bigint,
-            pull_source_name varchar(64),
-            pull_source_project_name varchar(64),
-            pull_timestamp timestamp,
-            picture_count bigint,
-            annotation_count bigint,
-            
-            primary key (id)
-        );
-        """)
+create table if not exists d_dataset (
+    id varchar(48) not null,
+    create_timestamp timestamp not null,
+    create_user_id varchar(48) not null,
+    
+    name_display varchar(64),
+    description varchar(128),
+    status varchar(16),
+    pull_source_id varchar(48),
+    pull_source_project_id bigint,
+    pull_source_name varchar(64),
+    pull_source_project_name varchar(64),
+    pull_timestamp timestamp,
+    picture_count bigint,
+    annotation_count bigint,
+    
+    primary key (id)
+);
+""")
 public class DatasetBean extends BaseBean
 {
 	/**

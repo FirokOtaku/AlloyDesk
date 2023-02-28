@@ -3,12 +3,12 @@ package firok.spring.alloydesk.deskleg.controller;
 import com.baomidou.mybatisplus.extension.service.IService;
 import firok.spring.alloydesk.deskleg.bean.DataSourceBean;
 import firok.topaz.spring.Ret;
-import firok.topaz.thread.Threads;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 @CrossOrigin
 @RequestMapping("/data-source")
@@ -27,6 +27,9 @@ public class DataSourceController
 		var ret = service.list();
 		return Ret.success(ret);
 	}
+
+	@Autowired
+	ReentrantLock GlobalLock;
 
 	/**
 	 * 创建一个数据源
@@ -48,7 +51,21 @@ public class DataSourceController
 		bean.setId(UUID.randomUUID().toString());
 		bean.setCreateTimestamp(new Date());
 		bean.setCreateUserId("");
-		service.save(bean);
+
+		try
+		{
+			GlobalLock.lock();
+			service.save(bean);
+		}
+		catch (Exception any)
+		{
+			return Ret.fail(any);
+		}
+		finally
+		{
+			GlobalLock.unlock();
+		}
+
 		return Ret.success(bean);
 	}
 
@@ -58,7 +75,20 @@ public class DataSourceController
 			@RequestParam("id") String id
 	)
 	{
-		service.removeById(id);
+		try
+		{
+			GlobalLock.lock();
+			service.removeById(id);
+		}
+		catch (Exception any)
+		{
+			return Ret.fail(any);
+		}
+		finally
+		{
+			GlobalLock.unlock();
+		}
+
 		return Ret.success();
 	}
 
@@ -77,7 +107,19 @@ public class DataSourceController
 		beanUpdate.setToken(bean.getToken());
 		beanUpdate.setUrl(bean.getUrl());
 		beanUpdate.setNameDisplay(bean.getNameDisplay());
-		service.updateById(bean);
+		try
+		{
+			GlobalLock.lock();
+			service.updateById(bean);
+		}
+		catch (Exception any)
+		{
+			return Ret.fail(any);
+		}
+		finally
+		{
+			GlobalLock.unlock();
+		}
 		return Ret.success(bean);
 	}
 }

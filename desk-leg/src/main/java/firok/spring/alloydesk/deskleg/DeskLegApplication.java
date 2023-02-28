@@ -4,6 +4,7 @@ import firok.spring.dbsculptor.DirectMapper;
 import firok.spring.dbsculptor.Dubnium;
 import firok.spring.dbsculptor.DubniumSculptor;
 import firok.spring.mvci.runtime.CurrentMappers;
+import firok.topaz.general.Version;
 import jakarta.annotation.PostConstruct;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.annotation.MapperScans;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 		@MapperScan("firok.spring.dbsculptor"),
 })
 @ComponentScans({
+		@ComponentScan("firok.spring.alloydesk.deskleg.config"),
 		@ComponentScan("firok.spring.alloydesk.deskleg.mapper"),
 		@ComponentScan("firok.spring.alloydesk.deskleg.service"),
 		@ComponentScan("firok.spring.alloydesk.deskleg.service_impl"),
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @SpringBootApplication
 public class DeskLegApplication
 {
+	public static final Version VERSION = new Version(0, 5, 0);
 
 	public static void main(String[] args) throws Exception
 	{

@@ -17,19 +17,19 @@ import java.util.*;
 @MVCIntrospective
 @TableName("d_data_source")
 @Dubnium(sculpturalScript = """
-        create table if not exists d_data_source (
-            id varchar(48) not null,
-            create_timestamp timestamp not null,
-            create_user_id varchar(48),
-            
-            name_display varchar(64),
-            url varchar(256),
-            token varchar(128),
-            description varchar(128),
-            
-            primary key(id)
-        );
-        """)
+create table if not exists d_data_source (
+    id varchar(48) not null,
+    create_timestamp timestamp not null,
+    create_user_id varchar(48),
+    
+    name_display varchar(64),
+    url varchar(256),
+    token varchar(128),
+    description varchar(128),
+    
+    primary key(id)
+);
+""")
 public class DataSourceBean extends BaseBean
 {
 	/**

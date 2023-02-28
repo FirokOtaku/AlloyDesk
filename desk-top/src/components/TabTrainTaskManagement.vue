@@ -7,14 +7,16 @@
 	训练任务管理
 
 	<div class="right-align">
-		<w-input class="d-inline text-left small-margin">
+		<w-input class="d-inline text-left small-margin"
+		         @update:model-value="triggerRefreshTaskList">
 			过滤名称
 		</w-input>
 		<w-select class="d-inline text-left small-margin"
+		          @update:model-value="triggerRefreshTaskList"
 		          :items="['全部', '进行中', '已完成', '迭代中']">
 			过滤状态
 		</w-select>
-		<w-button>
+		<w-button @click="triggerRefreshTaskList" :disabled="isRefreshingTaskList">
 			刷新
 		</w-button>
 
@@ -27,46 +29,96 @@
 
 	<div v-show="isDisplayCreateTaskModal">
 		<w-card class="small-padding">
-			<w-input readonly required @click="$emit('show-right-panel')"
-			         :model-value="displaySelectedDataset">
+			<w-select no-unselect
+			          :disabled="isCreatingTask"
+			          v-model="inCreateTaskDatasetId"
+			          :items="listDataset"
+			          item-label-key="nameDisplay"
+			          item-value-key="id">
 				数据集
-			</w-input>
+			</w-select>
 
 			<div class="space"></div>
 
-			<w-input readonly required @click="$emit('show-right-panel')"
-			         :model-value="displaySelectedModel">
+			<w-select no-unselect
+			          :disabled="isCreatingTask"
+			          v-model="inCreateTaskModelId"
+			          :items="listModel"
+			          item-label-key="displayName"
+			          item-value-key="id">
 				模型
-			</w-input>
+			</w-select>
 
 			<div class="space"></div>
 
-			<w-select :items="ListTrainProcess">
+			<w-select no-unselect
+			          :disabled="isCreatingTask"
+			          v-model="inCreateTaskProcessControlMethod"
+			          :items="ListTrainProcess"
+			          item-value-key="value">
 				训练过程
 			</w-select>
 
-			<div class="tiny-space"></div>
+			<div class="small-space"></div>
 
-			<template v-if="true">
-				<w-textarea label="控制脚本" no-autogrow rows="12"></w-textarea>
+			<template v-if="inCreateTaskProcessControlMethod === 'script'">
+				<w-textarea label="控制脚本" no-autogrow rows="12"
+				            :disabled="isCreatingTask"
+				            v-model="inCreateTaskScript"></w-textarea>
 			</template>
-			<template v-if="true">
-				<w-select :items="ListModelSave">
+			<template v-else>
+				<w-input v-model="inCreateTaskEpochX" type="number" min="1" max="120000" step="1">
+					轮次 X
+				</w-input>
+
+				<div class="space"></div>
+
+				<w-input v-model="inCreateTaskEpochY"
+				         type="number" min="1" max="120000" step="1"
+				         v-if="inCreateTaskProcessControlMethod === 'roundXY'">
+					轮次 Y
+				</w-input>
+
+				<div class="space" v-if="inCreateTaskProcessControlMethod === 'roundXY'"></div>
+
+				<w-select no-unselect
+				          :disabled="isCreatingTask"
+				          v-model="inCreateTaskModelStorageMethod"
+				          :items="ListModelSave"
+				          item-value-key="value">
 					模型保存
 				</w-select>
 
-				<div class="tiny-space"></div>
+				<div class="small-space"></div>
 
-				<w-input>
+				<w-input placeholder="回车以添加新标签"
+				         :disabled="isCreatingTask"
+				         v-model="inCreateTaskCustomLabel"
+				         @keypress.enter="addLabel">
 					标签
 				</w-input>
+
+				<div class="tiny-space"></div>
+
+				<div>
+					<template v-for="tag in inCreateTaskCustomLabelSet">
+						<w-tag
+							:disabled="isCreatingTask"
+							@click="removeLabel(tag)"
+							:model-value="true"
+							:outline="true"
+							color="primary" style="margin-right: 6px">
+							{{ tag }}
+						</w-tag>
+					</template>
+				</div>
 			</template>
 
 			<div class="right-align">
 				<w-button bg-color="blue-light5" class="small-margin" @click="isDisplayTrainProcessHelp = true">
 					关于训练控制
 				</w-button>
-				<w-button bg-color="success">
+				<w-button bg-color="success" :disabled="isCreatingTask" @click="createTask">
 					创建任务
 				</w-button>
 			</div>
@@ -106,17 +158,19 @@
 <script setup>
 
 import {computed, ref} from "vue"
+import WaveUI from "wave-ui";
+import {get, post} from "@/components/networks";
+import {debounce} from "@/components/util";
 
+const props = defineProps({
+	listDataset: Array,
+	listModel: Array,
+})
 const emits = defineEmits([
 	'show-right-panel', // 显示右侧暂存区
 ])
 
 const isDisplayCreateTaskModal = ref(true)
-const allSelectablePallet = new Set()
-allSelectablePallet.add('model')
-allSelectablePallet.add('dataset')
-const selectablePallet = computed(() => isDisplayCreateTaskModal.value ? allSelectablePallet : null)
-
 const tableModel = {
 	headers: [
 		{ label: '名称', key: 'nameDisplay' },
@@ -129,46 +183,28 @@ const tableModel = {
 	} ],
 }
 
-const selectedPlaceholder = { isPlaceholder: true }
-const selectedDataset = ref(null)
-const selectedModel = ref(null)
-const displaySelectedDataset = computed(() => selectedDataset.value != null ? selectedDataset.value.displayName : '请在暂存区中选中数据集')
-const displaySelectedModel = computed(() => selectedModel.value != null ? selectedModel.value.displayName : '请在暂存区选中模型')
-function selectPallet(bean)
-{
-	bean = Object.assign({}, bean)
-	const type = bean['palletType'] ?? 'unknown'
-	switch (type)
-	{
-		case 'dataset':
-			selectedDataset.value = bean
-			break
-		case 'model':
-			selectedModel.value = bean
-			break
-	}
-}
-const isDisplayTrainProcessHelp = ref(true)
+const isDisplayTrainProcessHelp = ref(false)
 const ListTrainProcess = ref([
 	{
 		label: 'FOR (x)',
-		value: 'fixed-round',
+		value: 'roundX',
 		desc: [
 			`训练将会运行 <span class="blue-dark1">x</span> 轮, 然后任务将会结束`,
 		],
 	},
 	{
 		label: 'FOR (x) FOR (y)',
-		value: 'no-stop',
+		value: 'roundXY',
 		desc: [
 			`训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 重复 <span class="blue-dark1">y</span> 次`
 		],
 	},
 	{
 		label: 'WHILE (TRUE) FOR (x)',
-		value: 'while',
+		value: 'round1X',
 		desc: [
-			'训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 直到手动停止'
+			'训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 直到手动停止',
+			`<span class="small-text yellow-dark3">遇到错误后自动停止</span>`
 		],
 	},
 	{
@@ -182,7 +218,7 @@ const ListTrainProcess = ref([
 const ListModelSave = ref([
 	{
 		label: '保存轮末',
-		value: 'save-round-final',
+		value: 'saveEnd',
 		desc: [
 			`保存最后一轮训练生成的模型数据`,
 			`使用 <span class="purple-dark2">FOR (x) FOR (y)</span> 模式时会保存每一大轮末尾的模型数据`
@@ -190,7 +226,7 @@ const ListModelSave = ref([
 	},
 	{
 		label: '全部保存',
-		value: 'save-all',
+		value: 'saveAll',
 		desc: [
 			`保存训练过程中生成的全部模型数据`,
 			`<span class="small-text yellow-dark3">这会占用大量储存空间</span>`
@@ -215,5 +251,108 @@ const ListAllHelp = ref([
 	{ label: '模型标签', value: ListLabeling.value },
 ])
 
-defineExpose({ selectablePallet, selectPallet })
+const isRefreshingTaskList = ref(false)
+async function refreshTaskList()
+{
+	if(isRefreshingTaskList.value) return
+	isRefreshingTaskList.value = true
+
+	try
+	{
+		let result = await get({
+			url: '/task/list-all',
+			params: {},
+		})
+		console.log('刷新任务列表', result)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('刷新任务列表出错: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isRefreshingTaskList.value = false
+	}
+}
+function triggerRefreshTaskList()
+{
+	debounce(refreshTaskList, 1000)
+}
+
+const inCreateTaskDatasetId = ref({})
+const inCreateTaskModelId = ref({})
+const inCreateTaskProcessControlMethod = ref('roundX')
+const inCreateTaskScript = ref('')
+const inCreateTaskModelStorageMethod = ref('saveEnd')
+const inCreateTaskCustomLabel = ref('')
+const inCreateTaskCustomLabelSet = ref(new Set())
+const inCreateTaskEpochX = ref(12)
+const inCreateTaskEpochY = ref(12)
+function addLabel()
+{
+	if(isCreatingTask.value) return
+	const value = inCreateTaskCustomLabel.value
+	inCreateTaskCustomLabelSet.value.add(value)
+}
+function removeLabel(value)
+{
+	if(isCreatingTask.value) return
+	inCreateTaskCustomLabelSet.value.delete(value)
+}
+const isCreatingTask = ref(false)
+async function createTask()
+{
+	if(isCreatingTask.value) return
+	isCreatingTask.value = true
+
+	const datasetId = inCreateTaskDatasetId.value
+	const modelId = inCreateTaskModelId.value
+	const processControlMethod = inCreateTaskProcessControlMethod.value
+	const script = inCreateTaskScript.value
+	const modelStorageMethod = inCreateTaskModelStorageMethod.value
+	const labelSet = [...inCreateTaskCustomLabelSet.value]
+	const epochX = inCreateTaskEpochX.value
+	const epochY = inCreateTaskEpochY.value
+
+	try
+	{
+		if(typeof(datasetId) !== 'string' || datasetId === '')
+		{
+			WaveUI.instance.notify('未选中数据集', 'error', 5000)
+			return
+		}
+		if(typeof(datasetId) !== 'string' || modelId === '')
+		{
+			WaveUI.instance.notify('未选中模型', 'error', 5000)
+			return
+		}
+		if(processControlMethod === 'script' && script.trim().length === 0)
+		{
+			WaveUI.instance.notify('未提供脚本', 'error', 5000)
+			return
+		}
+
+		await post({
+			url: '/task/create',
+			data: {
+				datasetId, modelId,
+				processControlMethod,
+				modelStorageMethod,
+				labels: labelSet,
+				script, epochX, epochY,
+			},
+		})
+		WaveUI.instance.notify('创建任务成功', 'success', 3000)
+		isDisplayCreateTaskModal.value = false
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('创建任务失败: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isCreatingTask.value = false
+		await refreshTaskList()
+	}
+}
 </script>

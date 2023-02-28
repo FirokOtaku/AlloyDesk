@@ -2,15 +2,15 @@ package firok.spring.alloydesk.deskleg.bean;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum FrameworkTypeEnum
+public enum TaskModelStorageEnum
 {
-	Mmdetection("mmdetection"),
+	SaveAll("saveAll"),
+	SaveEnd("saveEnd"),
 
 	;
-
 	@JsonValue
 	public final String key;
-	FrameworkTypeEnum(String key)
+	TaskModelStorageEnum(String key)
 	{
 		this.key = key;
 	}

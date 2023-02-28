@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static firok.topaz.general.Collections.*;
 import static firok.topaz.general.Enums.*;
@@ -39,6 +40,9 @@ public class DatasetController
 
 	@Value("${firok.spring.alloydesk.folder-dataset}")
 	File folderDatasetStorage;
+
+	@Autowired
+	ReentrantLock GlobalLock;
 
 	/**
 	 * 获取所有数据集
@@ -89,6 +93,8 @@ public class DatasetController
 	{
 		try
 		{
+			GlobalLock.lock();
+
 			var source = serviceSource.getById(sourceId);
 			var conn = source.getConnector();
 			var project = conn.Projects.getProjectById(projectId);
@@ -122,6 +128,10 @@ public class DatasetController
 		{
 			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 			return Ret.fail(any);
+		}
+		finally
+		{
+			GlobalLock.unlock();
 		}
 	}
 
@@ -163,7 +173,16 @@ public class DatasetController
 				any.printStackTrace(System.err);
 				bean.setStatus(DatasetStatusEnum.Broken);
 			}
-			serviceDataset.updateById(bean);
+
+			try
+			{
+				GlobalLock.lock();
+				serviceDataset.updateById(bean);
+			}
+			finally
+			{
+				GlobalLock.unlock();
+			}
 		}
 	}
 
@@ -188,6 +207,7 @@ public class DatasetController
 	{
 		try
 		{
+			GlobalLock.lock();
 			var bean = serviceDataset.getById(id);
 			if(bean == null)
 				throw new IllegalArgumentException("不存在的数据集");
@@ -222,6 +242,10 @@ public class DatasetController
 		{
 			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 			return Ret.fail(any);
+		}
+		finally
+		{
+			GlobalLock.unlock();
 		}
 	}
 }

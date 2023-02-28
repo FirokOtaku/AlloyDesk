@@ -42,7 +42,11 @@ body
 <!--				<TabTrainTaskManagement ref="refTab" v-if="currentTab === Tabs.TrainTaskManagement"/>-->
 
 <!--				<TabModelManagement ref="refTab" v-else-if="currentTab === Tabs.ModelManagement"/>-->
-				<component :is="currentTabClass" ref="refTab" @pop-pallet="popPallet" @show-right-panel="isRightPanelOpen = true"/>
+				<component :is="currentTabClass" ref="refTab"
+				           :list-dataset="listPalletDataset"
+				           :list-model="listPalletModel"
+				           @pop-pallet="popPallet"
+				           @show-right-panel="isRightPanelOpen = true"/>
 			</div>
 		</main>
 
@@ -71,13 +75,15 @@ import TabModelManagement from "@/components/TabModelManagement.vue"
 import TabDataSourceManagement from "@/components/TabDataSourceManagement.vue"
 import TabDatasetManagement from "@/components/TabDatasetManagement.vue"
 import TabTrainTaskManagement from "@/components/TabTrainTaskManagement.vue"
+import TabIndex from "@/components/TabIndex.vue"
 import WaveUI from "wave-ui"
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.TrainTaskManagement)
+const currentTab = ref(Tabs.Index)
 const currentTabClass = computed(() => {
 	switch(currentTab.value)
 	{
+		case Tabs.Index: return TabIndex
 		case Tabs.DataSourceManagement: return TabDataSourceManagement
 		case Tabs.DatasetManagement: return TabDatasetManagement
 		case Tabs.TrainTaskManagement: return TabTrainTaskManagement
@@ -135,9 +141,13 @@ function selectPallet(bean)
 
 const refRightPanel = ref()
 const isRightPanelOpen = ref(false)
-const listPalletDataset = ref([])
+const listPalletDataset = ref(
+	[{"palletType":"dataset","id":"1aaab2fb-b77f-4305-890b-676db5716a78","createTimestamp":"2023-02-24T06:59:44.000+00:00","createUserId":"","nameDisplay":"3","description":"3","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":6,"pullSourceName":"local","pullSourceProjectName":"manual-combine-1-2","pullTimestamp":"2023-02-24T06:59:44.000+00:00","pictureCount":4,"annotationCount":6,"_uid":"1aaab2fb-b77f-4305-890b-676db5716a78"},{"palletType":"dataset","id":"a346d712-a6ef-4485-8126-cd8bece3f30a","createTimestamp":"2023-02-24T06:59:17.000+00:00","createUserId":"","nameDisplay":"1","description":"1","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":1,"pullSourceName":"local","pullSourceProjectName":"project-1","pullTimestamp":"2023-02-24T06:59:17.000+00:00","pictureCount":3,"annotationCount":4,"_uid":"a346d712-a6ef-4485-8126-cd8bece3f30a"}]
+)
 // const listPalletDataSource = ref([])
-const listPalletModel = ref([])
+const listPalletModel = ref(
+	[{"palletType":"model","id":"1629814265044996097","createTimestamp":"2023-02-26T12:02:56.000+00:00","createUserId":"","displayName":"1","modelType":"Mmdetection","sourceTaskId":null,"tags":["1"],"_uid":"1629814265044996097"}]
+)
 const countPalletTotal = computed(() => {
 	return listPalletDataset.value.length + listPalletModel.value.length
 		// + listPalletDataSource.value.length

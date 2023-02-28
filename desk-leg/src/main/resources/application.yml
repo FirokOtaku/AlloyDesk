@@ -6,9 +6,16 @@ firok:
       runtime:
         enable-mapper-config: true
     alloydesk:
+      # 储存数据集的目录
       folder-dataset: ./alloy-desk-dataset
+      # 储存模型的陌路
       folder-model: ./alloy-desk-model
-      path-mmdetection: mmdetection
+      # mmdetection 主目录
+      # mmdetection 自带的各种脚本都是根据这个路径计算的相对路径
+      folder-mmdetection: D:/workspace-firok/workspace-mmlab/mmdetection
+      # mmdetection 环境预执行脚本
+      mmdetection-pre-script: ["conda activate open-mmlab"]
+      mmdetection-base-model: D:/workspace-firok/workspace-mmlab/mmdetection/checkpoints/mask_rcnn_r50_caffe_fpn_1x_coco_bbox_mAP-0.38__segm_mAP-0.344_20200504_231812-0ebd1859.pth
 
 
 server:
@@ -23,12 +30,18 @@ server:
   tomcat:
     max-http-form-post-size: 200MB
 
+#mybatis:
+#  configuration:
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
 logging:
   file:
     path: ./ally-desk-log/
   logback:
     rollingpolicy:
       clean-history-on-start: true
+  level:
+    com.lucifer.springboot.cache.mapper: debug
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver

@@ -48,6 +48,19 @@ const emits = defineEmits([
 
 const items = ref([
 	{
+		label: '系统',
+		class: 'left-panel-list-group'
+	},
+	{
+		label: '概览',
+		tab: Tabs.Index
+	},
+	{
+		label: '操作手册',
+		tab: Tabs.UserManual
+	},
+
+	{
 		label: '数据',
 		class: 'left-panel-list-group'
 	},
@@ -79,22 +92,7 @@ const items = ref([
 		label: '推理接口管理',
 		tab: Tabs.InferenceInterfaceManagement
 	},
-	{
-		label: '系统',
-		class: 'left-panel-list-group'
-	},
-	{
-		label: '用户管理',
-		tab: Tabs.UserManagement
-	},
-	{
-		label: '系统日志',
-		tab: Tabs.SystemLog
-	},
-	{
-		label: '操作手册',
-		tab: Tabs.UserManual
-	},
+
 ])
 
 function itemClick(item)

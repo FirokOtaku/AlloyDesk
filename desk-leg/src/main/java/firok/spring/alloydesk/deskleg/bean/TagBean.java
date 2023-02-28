@@ -12,18 +12,18 @@ import lombok.Data;
 @MVCIntrospective
 @TableName("d_tag")
 @Dubnium(sculpturalScript = """
-        create table if not exists d_tag (
-            id varchar(48) not null,
-            create_timestamp timestamp not null,
-            create_user_id varchar(48) not null,
-            
-            tag_type varchar(32),
-            target_id varchar(48),
-            tag_value varchar(64),
-            
-            primary key (id)
-        );
-        """)
+create table if not exists d_tag (
+    id varchar(48) not null,
+    create_timestamp timestamp not null,
+    create_user_id varchar(48) not null,
+    
+    tag_type varchar(32),
+    target_id varchar(48),
+    tag_value varchar(64),
+    
+    primary key (id)
+);
+""")
 public class TagBean extends BaseBean
 {
 	/**

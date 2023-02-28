@@ -11,4 +11,5 @@ export default {
     UserManagement: 'user-management',
     SystemLog: 'system-log',
     UserManual: 'user-manual',
+    Index: 'index',
 }
