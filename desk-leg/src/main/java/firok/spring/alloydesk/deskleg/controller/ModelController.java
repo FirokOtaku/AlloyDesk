@@ -8,6 +8,7 @@ import firok.spring.alloydesk.deskleg.bean.ModelBean;
 import firok.spring.alloydesk.deskleg.bean.TagBean;
 import firok.spring.alloydesk.deskleg.bean.TagTypeEnum;
 //import firok.spring.alloydesk.deskleg.mapper.ModelMultiMapper;
+import firok.spring.alloydesk.deskleg.service_multi.ModelMultiService;
 import firok.spring.alloydesk.deskleg.service_multi.TagMultiService;
 import firok.topaz.spring.Ret;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,11 +39,8 @@ public class ModelController
 	@Autowired
 	IService<TagBean> serviceTagRaw;
 
-//	@Autowired
-//	ModelMultiMapper mapper;
-
-	@Value("${firok.spring.alloydesk.folder-model}")
-	File folderModelStorage;
+	@Autowired
+	ModelMultiService serviceModelMulti;
 
 	public record SearchResult(Page<ModelBean> page, Map<String, Set<String>> mapModelTags) { }
 	/**
@@ -137,7 +135,7 @@ public class ModelController
 		File fileModel = null;
 		try
 		{
-			fileModel = new File(folderModelStorage, id + ".model.bin").getCanonicalFile();
+			fileModel = serviceModelMulti.fileOfModel(id);
 			fileModel.getParentFile().mkdirs();
 			fileModel.createNewFile();
 			file.transferTo(fileModel);
@@ -164,12 +162,12 @@ public class ModelController
 		if(bean == null)
 			return Ret.fail("不存在的模型");
 
-		// 检查模型是否被占用
+		// todo 检查模型是否被占用
 		// serviceTask.findAnyUsing(...)
 
-		var fileModel = new File(folderModelStorage, id + ".model.bin");
 		try
 		{
+			var fileModel = serviceModelMulti.fileOfModel(id);
 			fileModel.delete();
 			serviceModel.removeById(id);
 			serviceTag.setTagValues(id, TagTypeEnum.ModelTag);

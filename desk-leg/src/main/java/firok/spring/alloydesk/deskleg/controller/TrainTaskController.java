@@ -6,12 +6,14 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import firok.spring.alloydesk.deskleg.bean.*;
 import firok.spring.alloydesk.deskleg.service_multi.TrainTaskMultiService;
 import firok.topaz.spring.Ret;
-import firok.topaz.thread.Threads;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.*;
 
 /**
@@ -29,7 +31,39 @@ public class TrainTaskController
 	@Autowired
 	IService<TrainTaskLogBean> serviceLog;
 
-	public record CreateTaskParam(
+	@PostConstruct
+	void postCons()
+	{
+		// 每次启动的时候检查数据库
+		// 如果数据库里有标记为正在运行的任务
+		// 就把这个任务标记为失败
+
+		// 因为有可能数据库还没初始化 这个可能出错 先不用管
+		try
+		{
+			var setId = serviceMulti.findIdWithState(TaskStateEnum.Running);
+			if(setId.isEmpty()) return;
+
+			for(var taskId : setId)
+				serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "未正常结束, 强制停止");
+
+			serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+		}
+		catch (Exception ignored) { }
+	}
+	@PreDestroy
+	void preDes()
+	{
+		var setId = serviceMulti.findIdWithState(TaskStateEnum.Running);
+		if(setId.isEmpty()) return;
+
+		for(var taskId : setId)
+			serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "系统停止, 强制停止");
+
+		serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+	}
+
+	public record CreateMmdetectionTaskParam(
 			String displayName,
 			String modelId,
 			String datasetId,
@@ -39,17 +73,20 @@ public class TrainTaskController
 			String[] labels,
 			String script,
 			Integer epochX,
-			Integer epochY
+			Integer epochY,
+			BigDecimal lr,
+			BigDecimal momentum,
+			BigDecimal weightDecay
 	) { }
 	@Transactional(rollbackFor = Throwable.class)
-	@PostMapping("/create")
-	public Ret<?> create(
-			@RequestBody CreateTaskParam params
+	@PostMapping("/create-mmdetection")
+	public Ret<?> createMmdetection(
+			@RequestBody CreateMmdetectionTaskParam params
 	)
 	{
 		try
 		{
-			serviceMulti.createTask(params);
+			serviceMulti.createMmdetectionTask(params);
 			return Ret.success();
 		}
 		catch (Exception any)

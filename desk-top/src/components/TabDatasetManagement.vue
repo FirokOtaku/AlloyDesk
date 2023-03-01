@@ -76,15 +76,6 @@
 					暂存
 				</w-button>
 
-<!--				<w-tooltip left v-if="item.status === 'Ready'">-->
-<!--					<template #activator="{ on }">-->
-<!--						<w-button class="ma1" v-on="on">-->
-<!--							回收-->
-<!--						</w-button>-->
-<!--					</template>-->
-<!--					删除图片和标注数据, 回收磁盘空间-->
-<!--				</w-tooltip>-->
-
 				<w-confirm class="d-inline-block"
 				           bg-color="error"
 				           question="确认删除?"
@@ -94,6 +85,10 @@
 				</w-confirm>
 			</template>
 		</w-table>
+		<div class="space"></div>
+		<div class="center-align">
+			<Pagination :page="tableModel.page" :disabled="isRefreshingDataset" @go-page="goPage"/>
+		</div>
 	</div>
 
 	<w-overlay :model-value="isDisplayPullDatasetModal" :persistent="true">
@@ -184,6 +179,7 @@ import { ref, onMounted } from "vue"
 import WaveUI from "wave-ui"
 import {get, post} from "@/components/networks"
 import {debounce} from "@/components/util"
+import Pagination from "@/components/Pagination.vue";
 
 const isRefreshingDataset = ref(false)
 const tableModel = ref({
@@ -196,6 +192,7 @@ const tableModel = ref({
 		{ label: '操作', key: 'op' },
 	],
 	items: [],
+	page: null,
 })
 const inFilterDatasetName = ref('')
 const inFilterDatasetStatus = ref([])
@@ -206,30 +203,38 @@ const listStatus = ref([
 	{ key: 'Broken', name: '损坏', colorText: '#ff1111' },
 	{ key: 'Logical', name: '仅存档', colorText: '#ff7700' },
 ])
-async function refreshDataset()
+async function refreshDataset(name, status, pageIndex = 1, pageSize = 10)
 {
 	if(isRefreshingDataset.value) return
 	isRefreshingDataset.value = true
 
+	if(!name) name = inFilterDatasetName.value
+	if(!status) status = [...inFilterDatasetStatus.value]
+
 	try
 	{
-		const storage = tableModel.value.items
+		const tableItems = tableModel.value.items
 		const raw = await get({
 			url: '/dataset/list-all',
-			params: { name: inFilterDatasetName.value, status: [...inFilterDatasetStatus.value] },
+			params: {
+				name,
+				status,
+				pageIndex,
+				pageSize,
+			},
 		})
 		const listDataset = raw['records']
-		for(const dataset of listDataset)
-		{
-			;
-		}
-		storage.splice(0, storage.length)
-		storage.push(...listDataset)
+		tableItems.splice(0, tableItems.length)
+		tableItems.push(...listDataset)
+		raw.filterName = name
+		raw.filterStatus = status
+		tableModel.value.page = raw
 	}
 	catch (any)
 	{
-		console.log('any', any)
 		WaveUI.instance.notify('刷新失败', 'error', 5000)
+		tableModel.value.page = null
+		tableModel.value.items.splice(0, tableModel.value.items.length)
 	}
 	finally
 	{
@@ -238,7 +243,18 @@ async function refreshDataset()
 }
 function triggerRefreshDataset()
 {
+	if(isRefreshingDataset.value) return
 	debounce(refreshDataset, 1000)()
+}
+function goPage(page)
+{
+	const name = tableModel.value.page.filterName, status = tableModel.value.page.filterStatus
+	isRefreshingDataset.value = true
+	inFilterDatasetName.value = name
+	inFilterDatasetStatus.value.splice(0, inFilterDatasetStatus.value.length)
+	inFilterDatasetStatus.value.push(...status)
+	isRefreshingDataset.value = false
+	refreshDataset(name, status, page)
 }
 
 const Placeholder = {isPlaceholder: true, labelDisplay: '未选择'}

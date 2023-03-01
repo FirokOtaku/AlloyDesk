@@ -56,6 +56,12 @@
 		</template>
 	</w-table>
 
+	<div class="space"></div>
+
+	<div class="center-align">
+		<Pagination :disabled="isRefreshingModel" :page="tableModel.page" @go-page="goPage"/>
+	</div>
+
 	<w-overlay :model-value="isDisplayUploadModelModal" :persistent="true">
 		<w-card title="上传模型"
 		        title-class="primary--bg"
@@ -132,6 +138,7 @@ import {onMounted, ref} from 'vue'
 import {debounce} from "@/components/util";
 import {get, post} from "@/components/networks";
 import WaveUI from "wave-ui";
+import Pagination from "@/components/Pagination.vue";
 
 const tableModel = ref({
 	headers: [
@@ -141,50 +148,67 @@ const tableModel = ref({
 		{ label: '操作', key: 'op' },
 	],
 	items: [],
+	page: null,
 })
 
 const inFilterName = ref('')
 const inFilterTag = ref('')
 const isRefreshingModel = ref(false)
-async function refreshModel()
+async function refreshModel(name, tag, pageIndex = 1, pageSize = 10)
 {
 	if(isRefreshingModel.value) return
 	isRefreshingModel.value = true
 
-	const storage = tableModel.value.items
-	const temp = []
 	try
 	{
 		const name = inFilterName.value
 		const tag = inFilterTag.value
-		let result = await get({
+		let raw = await get({
 			url: '/model/search',
-			params: { keywordName: name, keywordTag: tag },
+			params: {
+				keywordName: name,
+				keywordTag: tag,
+				pageIndex,
+				pageSize,
+			},
 		})
-		let list = result?.page?.records ?? []
+		let list = raw?.page?.records ?? []
 		for(const model of list)
 		{
 			const id = model.id
 			if(id == null) continue
-			model.tags = result?.mapModelTags[id] ?? []
+			model.tags = raw?.mapModelTags[id] ?? []
 		}
-		temp.push(...list)
+		tableModel.value.items.splice(0, tableModel.value.items.length)
+		tableModel.value.items.push(...list)
+		raw.page.name = name
+		raw.page.tag = tag
+		tableModel.value.page = raw.page
 	}
 	catch (any)
 	{
 		WaveUI.instance.notify('获取模型列表出错', 'error', 5000)
-		tableModel.value.items.splice(0, )
+		tableModel.value.items.splice(0, tableModel.value.items.length)
+		tableModel.value.page = null
 	}
 	finally
 	{
-		storage.splice(0, storage.length)
-		storage.push(...temp)
 		isRefreshingModel.value = false
 	}
 }
 function triggerRefreshModel()
 {
+	if(isRefreshingModel.value) return
 	debounce(refreshModel, 1000)()
+}
+function goPage(page)
+{
+	const name = tableModel.value.page.name, tag = tableModel.value.page.tag
+	isRefreshingModel.value = true
+	inFilterName.value = name
+	inFilterTag.value = tag
+	isRefreshingModel.value = false
+	refreshModel(name, tag, page)
 }
 
 const isDisplayUploadModelModal = ref(false)

@@ -23,8 +23,8 @@ public class MmdetectionHelper
 	@Value("${firok.spring.alloydesk.folder-mmdetection}")
 	File folderMmdetection; // 主目录
 
-	@Value("${firok.spring.alloydesk.mmdetection-pre-script}")
-	String[] preScript; // 环境预执行脚本
+//	@Value("${firok.spring.alloydesk.mmdetection-pre-script}")
+//	String preScript; // 环境预执行脚本
 
 	@Value("${firok.spring.alloydesk.mmdetection-base-model}")
 	File fileBaseModel; // 基础模型文件
@@ -89,11 +89,7 @@ public class MmdetectionHelper
 			File fileCoco,
 			File folderImage,
 			String taskId,
-			TrainTaskController.CreateTaskParam params,
-			BigDecimal lr,
-			BigDecimal momentum,
-			BigDecimal weightDecay,
-			int maxEpoch
+			TrainTaskController.CreateMmdetectionTaskParam params
 	) throws Exception
 	{
 		if(fileModel == null) fileModel = fileBaseModel;
@@ -126,10 +122,17 @@ public class MmdetectionHelper
 		map.put(PatternAnnoFile, fileCoco.getAbsolutePath());
 		map.put(PatternClasses, contentTypes);
 		map.put(PatternCountClasses, String.valueOf(countTypes));
-		map.put(PatternLr, lr.toPlainString());
-		map.put(PatternMomentum, momentum.toPlainString());
-		map.put(PatternWeightDecay, weightDecay.toPlainString());
-		map.put(PatternMaxEpoch, String.valueOf(maxEpoch));
+		map.put(PatternLr, params.lr().toPlainString());
+		map.put(PatternMomentum, params.momentum().toPlainString());
+		map.put(PatternWeightDecay, params.weightDecay().toPlainString());
+		map.put(PatternMaxEpoch, String.valueOf(
+				switch(params.processControlMethod())
+				{
+					case RoundX, Round1X -> params.epochX();
+					case RoundXY -> params.epochY();
+					default -> (Integer) 0;
+				}
+		));
 		map.put(PatternCheckpoint, fileModel.getAbsolutePath());
 		return pipeline.replaceAll(TemplateMmdetectionConfig, map);
 	}

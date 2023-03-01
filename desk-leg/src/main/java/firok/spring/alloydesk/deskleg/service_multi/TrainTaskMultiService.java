@@ -8,10 +8,16 @@ import firok.spring.alloydesk.deskleg.config.MmdetectionHelper;
 import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
 import firok.topaz.platform.NativeProcess;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.OpenOption;
+import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -31,45 +37,19 @@ public class TrainTaskMultiService
 	public static final int LevelDetail = 80;
 	public static final int LevelDebug = 20;
 
-	private Set<String> findIdWithState(TaskStateEnum state)
+	public Set<String> findIdWithState(TaskStateEnum state)
 	{
 		var qw = new QueryWrapper<TrainTaskBean>().lambda()
 				.select(TrainTaskBean::getId)
 				.eq(TrainTaskBean::getState, state);
 		return serviceTask.list(qw).stream().map(TrainTaskBean::getId).collect(Collectors.toSet());
 	}
-	private void updateStateByIds(Set<String> setId, TaskStateEnum state)
+	public void updateStateByIds(Set<String> setId, TaskStateEnum state)
 	{
 		var uw = new UpdateWrapper<TrainTaskBean>().lambda()
 				.set(TrainTaskBean::getState, state)
 				.in(TrainTaskBean::getState, setId);
 		serviceTask.update(uw);
-	}
-	@PostConstruct
-	void postCons()
-	{
-		// 每次启动的时候检查数据库
-		// 如果数据库里有标记为正在运行的任务
-		// 就把这个任务标记为失败
-
-		var setId = findIdWithState(TaskStateEnum.Running);
-		if(setId.isEmpty()) return;
-
-		for(var taskId : setId)
-			addLog(taskId, LevelKeypoint, "未正常结束, 强制停止");
-
-		updateStateByIds(setId, TaskStateEnum.ErrorEnd);
-	}
-	@PreDestroy
-	void preDes()
-	{
-		var setId = findIdWithState(TaskStateEnum.Running);
-		if(setId.isEmpty()) return;
-
-		for(var taskId : setId)
-			addLog(taskId, LevelKeypoint, "系统停止, 强制停止");
-
-		updateStateByIds(setId, TaskStateEnum.ErrorEnd);
 	}
 
 	public void addLog(String taskId, int level, String content)
@@ -113,15 +93,50 @@ public class TrainTaskMultiService
 	@Autowired
 	MmdetectionHelper helper;
 
+	@Value("${firok.spring.alloydesk.folder-task}")
+	File folderTaskStorage;
+
+	@Value("${firok.spring.alloydesk.folder-mmdetection}")
+	File folderMmdetection;
+
+	String fileMmdetectionTrainPy;
+	@PostConstruct
+	void postCons() throws IOException
+	{
+		fileMmdetectionTrainPy = new File(folderMmdetection, "tools/train.py").getCanonicalPath();
+	}
+
+	public File folderOfTask(String taskId) throws IOException
+	{
+		return new File(folderTaskStorage, taskId).getCanonicalFile();
+	}
+	public File fileOfMmdetectionTaskConfig(String taskId) throws IOException
+	{
+		return new File(folderTaskStorage, taskId + "/" + taskId + ".py").getCanonicalFile();
+	}
+	public File folderOfMmdetectionTaskWorkdir(String taskId) throws IOException
+	{
+		return new File(folderMmdetection, "workdir/" + taskId).getCanonicalFile();
+	}
+
+	@Autowired
+	DatasetMultiService serviceDatasetMulti;
+
+	@Autowired
+	ModelMultiService serviceModelMulti;
+
 	/**
 	 * 任务 id -> 本地进程
 	 * */
 	private final Map<String, NativeProcess> mapTaskProcess = new HashMap<>();
 
+	@Value("${firok.spring.alloydesk.mmdetection-pre-script}")
+	String preScript;
+
 	/**
 	 * 创建一个新任务
 	 * */
-	public void createTask(TrainTaskController.CreateTaskParam params) throws Exception
+	public void createMmdetectionTask(TrainTaskController.CreateMmdetectionTaskParam params) throws Exception
 	{
 		try
 		{
@@ -150,6 +165,12 @@ public class TrainTaskMultiService
 			if(dataset.getPictureCount() <= 0)
 				throw new IllegalStateException("数据集没有图片数据");
 
+			// 获取数据集和模型目录
+			var folderDataset = serviceDatasetMulti.folderOfDataset(datasetId);
+			var fileDatasetAnnotations = serviceDatasetMulti.fileOfCocoDatasetAnnotation(folderDataset);
+			var folderDatasetImages = serviceDatasetMulti.folderOfCocoDatasetImages(folderDataset);
+			var fileModel = serviceModelMulti.fileOfModel(modelId);
+
 			// 更新数据集状态
 			var beanDatasetUpdate = new DatasetBean();
 			beanDatasetUpdate.setId(datasetId);
@@ -172,15 +193,27 @@ public class TrainTaskMultiService
 			task.setDisplayName(params.displayName());
 			serviceTask.save(task);
 
+			var taskId = task.getId(); // 任务 id
+
 			// 创建 mmdetection 需要的配置文件
-//			helper.generateTrainScript();
-			// todo
+			var contentConfigPy = helper.generateTrainScript(
+					fileModel,
+					fileDatasetAnnotations,
+					folderDatasetImages,
+					taskId,
+					params
+			);
+			var fileConfig = fileOfMmdetectionTaskConfig(taskId);
+			Files.writeString(fileConfig.toPath(), contentConfigPy, StandardCharsets.UTF_8, StandardOpenOption.CREATE);
 
 			// 创建本地进程
-//			var process = new NativeProcess("""
-//					""");
+			// todo 等真机能用的时候再改
+//			var process = new NativeProcess(preScript);
+//			var cmd = """
+//                    %s -c %s
+//                    """.formatted(fileMmdetectionTrainPy, fileConfig);
+//			process.println(cmd);
 
-			var taskId = task.getId();
 			addLog(taskId, LevelKeypoint, "任务已创建");
 		}
 		finally

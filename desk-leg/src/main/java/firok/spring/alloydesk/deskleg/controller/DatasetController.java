@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import firok.spring.alloydesk.deskleg.bean.DataSourceBean;
 import firok.spring.alloydesk.deskleg.bean.DatasetBean;
 import firok.spring.alloydesk.deskleg.bean.DatasetStatusEnum;
+import firok.spring.alloydesk.deskleg.service_multi.DatasetMultiService;
 import firok.tool.alloywrench.bean.CocoData;
 import firok.tool.labelstudio.LabelStudioConnector;
 import firok.tool.labelstudio.bean.ProjectBean;
@@ -15,7 +16,6 @@ import firok.topaz.spring.Ret;
 import jakarta.annotation.PostConstruct;
 import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.bind.annotation.*;
@@ -38,9 +38,6 @@ public class DatasetController
 	@Autowired
 	IService<DatasetBean> serviceDataset;
 
-	@Value("${firok.spring.alloydesk.folder-dataset}")
-	File folderDatasetStorage;
-
 	@Autowired
 	ReentrantLock GlobalLock;
 
@@ -52,7 +49,7 @@ public class DatasetController
 			@RequestParam(value = "name",required = false) String filterName,
 			@RequestParam(value = "status",required = false) String[] filterStatuses,
 			@RequestParam(value = "pageIndex", defaultValue = "1") int pageIndex,
-			@RequestParam(value = "pageSize", defaultValue = "20") int pageSize
+			@RequestParam(value = "pageSize", defaultValue = "3") int pageSize
 	)
 	{
 		var page = serviceDataset.page(
@@ -81,6 +78,9 @@ public class DatasetController
 			return Ret.fail(any);
 		}
 	}
+
+	@Autowired
+	DatasetMultiService serviceDatasetMulti;
 
 	public record PullDatasetParam(String nameDisplay, String description) { }
 	@PostMapping("/pull")
@@ -118,7 +118,7 @@ public class DatasetController
 			bean.setDescription(params.description);
 			serviceDataset.save(bean);
 
-			var folderDataset = new File(folderDatasetStorage, datasetId);
+			var folderDataset = serviceDatasetMulti.folderOfDataset(datasetId);
 			// 启动拉取
 			new PullThread(conn, project, datasetId, folderDataset).start();
 
@@ -158,7 +158,7 @@ public class DatasetController
 			try
 			{
 				conn.AdvancedExport.exportFullCocoDataset(project.getId(), folder);
-				var fileCoco = new File(folder, "coco.json");
+				var fileCoco = serviceDatasetMulti.fileOfCocoDatasetAnnotation(folder);
 				var om = new ObjectMapper();
 				var coco = om.readValue(fileCoco, CocoData.class);
 				var imageCount = sizeOf(coco.getImages());
@@ -221,9 +221,7 @@ public class DatasetController
 				case Broken:
 				case Logical:
 				case Ready:
-					var folderDataset = new File(folderDatasetStorage, id);
-					try { FileUtils.forceDelete(folderDataset); }
-					catch (FileNotFoundException ignored) { }
+					serviceDatasetMulti.deleteDataset(id);
 					break;
 
 				// 停止任务

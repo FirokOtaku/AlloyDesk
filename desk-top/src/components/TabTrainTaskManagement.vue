@@ -207,13 +207,13 @@ const ListTrainProcess = ref([
 			`<span class="small-text yellow-dark3">遇到错误后自动停止</span>`
 		],
 	},
-	{
-		label: 'SCRIPT',
-		value: 'script',
-		desc: [
-			`<span class="text-bold small-text red-dark3">高级</span> 使用给定脚本控制训练过程`
-		],
-	},
+	// {
+	// 	label: 'SCRIPT',
+	// 	value: 'script',
+	// 	desc: [
+	// 		`<span class="text-bold small-text red-dark3">高级</span> 使用给定脚本控制训练过程`
+	// 	],
+	// },
 ])
 const ListModelSave = ref([
 	{
