@@ -24,6 +24,9 @@
 		         :items="tableModel.items" fixed-headers
 		         :loading="isRefreshingSource"
 		         style="min-height: 350px">
+			<template #item-cell.token="{ item, label, header, index }">
+				token
+			</template>
 			<template #item-cell.op="{ item, label, header, index }">
 				<w-button class="small-margin" @click="btnEditSource_click(item)">
 					编辑

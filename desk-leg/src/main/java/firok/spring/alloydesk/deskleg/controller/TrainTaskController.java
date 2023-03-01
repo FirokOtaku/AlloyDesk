@@ -98,15 +98,18 @@ public class TrainTaskController
 	}
 
 	@GetMapping("/list-all")
-	public Ret<List<TrainTaskBean>> listAll(
+	public Ret<Page<TrainTaskBean>> listAll(
 			@RequestParam(value = "filterName", required = false) String filterName,
-			@RequestParam(value = "filterState", required = false) List<TaskStateEnum> filterState
+			@RequestParam(value = "filterState", required = false) List<TaskStateEnum> filterState,
+			@RequestParam(value = "pageIndex", defaultValue = "1") int pageIndex,
+			@RequestParam(value = "pageSize", defaultValue = "10") int pageSize
 	)
 	{
 		var qw = new QueryWrapper<TrainTaskBean>().lambda()
 				.like(filterName != null && !filterName.isBlank(), TrainTaskBean::getDisplayName, filterName)
 				.in(filterState != null && !filterState.isEmpty(), TrainTaskBean::getState, filterState);
-		return Ret.success(serviceRaw.list(qw));
+		var page = new Page<TrainTaskBean>(pageIndex, pageSize);
+		return Ret.success(serviceRaw.page(page, qw));
 	}
 
 	@GetMapping("/shutdown")

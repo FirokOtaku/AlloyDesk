@@ -34,7 +34,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @SpringBootApplication
 public class DeskLegApplication
 {
-	public static final Version VERSION = new Version(0, 6, 0);
+	public static final Version VERSION = new Version(0, 7, 0);
 
 	public static void main(String[] args) throws Exception
 	{

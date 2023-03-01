@@ -152,6 +152,11 @@
 			</w-button>
 		</template>
 	</w-table>
+
+	<div class="space"></div>
+	<div class="center-align">
+		<Pagination :page="null" :disabled="isRefreshingTaskList" @go-page="goPage"/>
+	</div>
 </div>
 </template>
 
@@ -161,6 +166,7 @@ import {computed, ref} from "vue"
 import WaveUI from "wave-ui";
 import {get, post} from "@/components/networks";
 import {debounce} from "@/components/util";
+import Pagination from "@/components/Pagination.vue";
 
 const props = defineProps({
 	listDataset: Array,
@@ -252,18 +258,22 @@ const ListAllHelp = ref([
 ])
 
 const isRefreshingTaskList = ref(false)
-async function refreshTaskList()
+async function refreshTaskList(name, status, pageIndex = 1, pageSize = 10)
 {
 	if(isRefreshingTaskList.value) return
 	isRefreshingTaskList.value = true
 
 	try
 	{
-		let result = await get({
+		let raw = await get({
 			url: '/task/list-all',
-			params: {},
+			params: {
+				filterName: name,
+				filterStatus: status,
+				pageIndex,
+				pageSize,
+			},
 		})
-		console.log('刷新任务列表', result)
 	}
 	catch (any)
 	{
@@ -276,7 +286,12 @@ async function refreshTaskList()
 }
 function triggerRefreshTaskList()
 {
+	if(isRefreshingTaskList.value) return
 	debounce(refreshTaskList, 1000)
+}
+function goPage(page)
+{
+	;
 }
 
 const inCreateTaskDatasetId = ref({})
@@ -333,13 +348,18 @@ async function createTask()
 		}
 
 		await post({
-			url: '/task/create',
+			url: '/task/create-mmdetection',
 			data: {
 				datasetId, modelId,
 				processControlMethod,
 				modelStorageMethod,
 				labels: labelSet,
 				script, epochX, epochY,
+				frameworkType: 'mmdetection',
+				displayName: '测试名称', // todo
+				lr: '0.0025',
+				momentum: '0.9',
+				weightDecay: '0.0001',
 			},
 		})
 		WaveUI.instance.notify('创建任务成功', 'success', 3000)

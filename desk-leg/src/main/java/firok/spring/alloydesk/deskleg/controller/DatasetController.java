@@ -190,10 +190,14 @@ public class DatasetController
 	@PostConstruct
 	void updateUnfinishedDataset()
 	{
-		var uw = new UpdateWrapper<DatasetBean>().lambda()
-				.set(DatasetBean::getStatus, DatasetStatusEnum.Broken)
-				.eq(DatasetBean::getStatus, DatasetStatusEnum.Pulling);
-		serviceDataset.update(uw);
+		try
+		{
+			var uw = new UpdateWrapper<DatasetBean>().lambda()
+					.set(DatasetBean::getStatus, DatasetStatusEnum.Broken)
+					.eq(DatasetBean::getStatus, DatasetStatusEnum.Pulling);
+			serviceDataset.update(uw);
+		}
+		catch (Exception ignored) { }
 	}
 
 	/**

@@ -7,6 +7,7 @@ import firok.spring.alloydesk.deskleg.bean.*;
 import firok.spring.alloydesk.deskleg.config.MmdetectionHelper;
 import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
 import firok.topaz.platform.NativeProcess;
+import firok.topaz.resource.Files;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,10 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.OpenOption;
-import java.nio.file.StandardOpenOption;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
@@ -204,7 +201,7 @@ public class TrainTaskMultiService
 					params
 			);
 			var fileConfig = fileOfMmdetectionTaskConfig(taskId);
-			Files.writeString(fileConfig.toPath(), contentConfigPy, StandardCharsets.UTF_8, StandardOpenOption.CREATE);
+			Files.writeTo(fileConfig, contentConfigPy);
 
 			// 创建本地进程
 			// todo 等真机能用的时候再改

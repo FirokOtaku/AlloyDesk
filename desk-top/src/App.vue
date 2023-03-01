@@ -79,7 +79,7 @@ import TabIndex from "@/components/TabIndex.vue"
 import WaveUI from "wave-ui"
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.ModelManagement)
+const currentTab = ref(Tabs.TrainTaskManagement)
 const currentTabClass = computed(() => {
 	switch(currentTab.value)
 	{
