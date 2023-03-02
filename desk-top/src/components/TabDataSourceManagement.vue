@@ -25,7 +25,7 @@
 		         :loading="isRefreshingSource"
 		         style="min-height: 350px">
 			<template #item-cell.token="{ item, label, header, index }">
-				token
+				<CopyIcon icon="vpn_key" :value="item.token" color="#993300"/>
 			</template>
 			<template #item-cell.op="{ item, label, header, index }">
 				<w-button class="small-margin" @click="btnEditSource_click(item)">
@@ -162,9 +162,11 @@
 
 import { ref, onMounted } from 'vue'
 import { get, post } from './networks'
+import { replace } from './util'
 
 
 import WaveUI from 'wave-ui'
+import CopyIcon from "@/components/CopyIcon.vue";
 
 const isDisplayCreateSourceModal = ref(false)
 
@@ -196,7 +198,6 @@ async function refreshSource()
 		const listSource = await get({ url: '/data-source/list-all' })
 		// tableModel.value.items.push(...listSource)
 		const items = tableModel.value.items
-		items.splice(0, items.length)
 		const list = []
 		for(const source of listSource)
 		{
@@ -219,7 +220,7 @@ async function refreshSource()
 				description,
 			})
 		}
-		items.push(...list)
+		replace(items, list)
 	}
 	catch (any)
 	{
@@ -264,7 +265,7 @@ async function btnCreateSource_click()
 	}
 	catch (any)
 	{
-		WaveUI.instance.notify(any, 'error', 0)
+		WaveUI.instance.notify('添加失败: ' + any, 'error', 0)
 	}
 	finally
 	{
@@ -337,6 +338,6 @@ function editSourceCancel()
 	objEditingSource.value = null
 }
 
-onMounted(() => refreshSource())
+onMounted(() => refreshSource().finally(() => {}))
 
 </script>

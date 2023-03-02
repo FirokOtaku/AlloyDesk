@@ -35,6 +35,7 @@ public class MmdetectionHelper
 
 	RegexPipeline pipeline;
 
+	private static final @RegExp String PatternWorkDir = "WORK_DIR";
 	private static final @RegExp String PatternGenerateDatetime = "GENERATE_DATETIME";
 	private static final @RegExp String PatternTaskId = "TASK_ID";
 	private static final @RegExp String PatternTaskName = "TASK_NAME";
@@ -44,7 +45,7 @@ public class MmdetectionHelper
 	private static final @RegExp String PatternImagePrefix = "IMG_PREFIX";
 	private static final @RegExp String PatternAnnoFile = "ANNO_FILE";
 	private static final @RegExp String PatternClasses = "CLASSES";
-	private static final @RegExp String PatternCountClasses = "COUNT_CLASSES";
+	private static final @RegExp String PatternCountClasses = "COUNT_TYPES";
 	private static final @RegExp String PatternLr = "LR";
 	private static final @RegExp String PatternMomentum = "MOMENTUM";
 	private static final @RegExp String PatternWeightDecay = "WEIGHT_DECAY";
@@ -53,7 +54,7 @@ public class MmdetectionHelper
 	private static final String TemplateMmdetectionConfig;
 	static
 	{
-		var cpr = new ClassPathResource("firok/spring/alloydesk/deskleg/template-mmdetection.py");
+		var cpr = new ClassPathResource("firok/spring/alloydesk/deskleg/template-mmdetection-train.py");
 		try(var ifs = cpr.getInputStream()) { TemplateMmdetectionConfig = new String(ifs.readAllBytes(), StandardCharsets.UTF_8); }
 		catch (Exception any) { throw new RuntimeException(any); }
 	}
@@ -62,10 +63,11 @@ public class MmdetectionHelper
 	@PostConstruct
 	void postCons() throws Exception
 	{
-		fileTrainPy = new File(folderMmdetection, "tools/train.py").getCanonicalPath();
-		fileBaseConfig = new File(folderMmdetection, "configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain_1x_coco.py").getCanonicalPath();
+		fileTrainPy = new File(folderMmdetection, "tools/train.py").getCanonicalPath().replaceAll("\\\\", "/");
+		fileBaseConfig = new File(folderMmdetection, "configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain_1x_coco.py").getCanonicalPath().replaceAll("\\\\", "/");
 		pipeline = new RegexPipeline();
 		for(var pattern : new String[] {
+				PatternWorkDir,
 				PatternGenerateDatetime,
 				PatternTaskId,
 				PatternTaskName,
@@ -86,6 +88,7 @@ public class MmdetectionHelper
 
 	public String generateTrainScript(
 			@Nullable File fileModel,
+			File folderWorkdir,
 			File fileCoco,
 			File folderImage,
 			String taskId,
@@ -112,14 +115,16 @@ public class MmdetectionHelper
 
 		// 最后的生成工作
 		var map = new HashMap<String, String>();
-		map.put(PatternGenerateDatetime, "unknown");
+		map.put(PatternWorkDir, folderWorkdir.getAbsolutePath().replaceAll("\\\\", "/"));
+		//noinspection deprecation
+		map.put(PatternGenerateDatetime, new Date().toLocaleString());
 		map.put(PatternTaskId, taskId);
 		map.put(PatternTaskName, params.displayName());
 		map.put(PatternUsedModel, params.modelId());
 		map.put(PatternUsedDataset, params.datasetId());
 		map.put(PatternBaseConfig, fileBaseConfig);
-		map.put(PatternImagePrefix, folderImage.getAbsolutePath());
-		map.put(PatternAnnoFile, fileCoco.getAbsolutePath());
+		map.put(PatternImagePrefix, folderImage.getAbsolutePath().replaceAll("\\\\", "/"));
+		map.put(PatternAnnoFile, fileCoco.getAbsolutePath().replaceAll("\\\\", "/"));
 		map.put(PatternClasses, contentTypes);
 		map.put(PatternCountClasses, String.valueOf(countTypes));
 		map.put(PatternLr, params.lr().toPlainString());
@@ -133,7 +138,7 @@ public class MmdetectionHelper
 					default -> (Integer) 0;
 				}
 		));
-		map.put(PatternCheckpoint, fileModel.getAbsolutePath());
+		map.put(PatternCheckpoint, fileModel.getAbsolutePath().replaceAll("\\\\", "/"));
 		return pipeline.replaceAll(TemplateMmdetectionConfig, map);
 	}
 }

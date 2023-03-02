@@ -4,19 +4,21 @@
 
 <template>
 <div>
-	训练任务管理
-
 	<div class="right-align">
 		<w-input class="d-inline text-left small-margin"
+		         v-model="inFilterName"
 		         @update:model-value="triggerRefreshTaskList">
 			过滤名称
 		</w-input>
 		<w-select class="d-inline text-left small-margin"
+		          v-model="inFilterStatus"
+		          :multiple="true"
 		          @update:model-value="triggerRefreshTaskList"
-		          :items="['全部', '进行中', '已完成', '迭代中']">
+		          :items="ListStatus">
 			过滤状态
 		</w-select>
-		<w-button @click="triggerRefreshTaskList" :disabled="isRefreshingTaskList">
+		<w-button @click="triggerRefreshTaskList"
+		          :disabled="isRefreshingTaskList">
 			刷新
 		</w-button>
 
@@ -142,30 +144,49 @@
 	<w-table :headers="tableModel.headers"
 	         :items="tableModel.items" fixed-headers
 	         style="min-height: 250px">
-		<template #item-cell.op>
-			<w-button class="small-margin">
+		<template #item-cell.state="{ item }">
+			<template v-for="Status in ListStatus">
+				<span v-if="item.state === Status.value">{{Status.label}}</span>
+			</template>
+		</template>
+		<template #item-cell.op="{ item }">
+			<w-button v-if="false"
+			          class="small-margin">
 				查看
+				<!-- todo -->
 			</w-button>
 
-			<w-button>
+			<w-button v-if="item.state === 'WaitingStart'" :disabled="true">
+				启动
+			</w-button>
+
+			<w-button v-else-if="item.state === 'Running'"
+			          :disabled="isRefreshingTaskList || isRequestingShutdown"
+			          @click="shutdownTask(item)">
 				停止
+			</w-button>
+
+			<w-button v-else-if="item.state.endsWith('End')"
+			          :disabled="isRefreshingTaskList || isRequestingDelete"
+			          @click="deleteTask(item)">
+				删除
 			</w-button>
 		</template>
 	</w-table>
 
 	<div class="space"></div>
 	<div class="center-align">
-		<Pagination :page="null" :disabled="isRefreshingTaskList" @go-page="goPage"/>
+		<Pagination :page="tableModel.page" :disabled="isRefreshingTaskList" @go-page="goPage"/>
 	</div>
 </div>
 </template>
 
 <script setup>
 
-import {computed, ref} from "vue"
+import {computed, onMounted, ref} from "vue"
 import WaveUI from "wave-ui";
 import {get, post} from "@/components/networks";
-import {debounce} from "@/components/util";
+import {debounce, replace} from "@/components/util";
 import Pagination from "@/components/Pagination.vue";
 
 const props = defineProps({
@@ -177,18 +198,23 @@ const emits = defineEmits([
 ])
 
 const isDisplayCreateTaskModal = ref(true)
-const tableModel = {
+const tableModel = ref({
 	headers: [
-		{ label: '名称', key: 'nameDisplay' },
+		{ label: '名称', key: 'displayName' },
 		{ label: '状态', key: 'state' },
 		{ label: '操作', key: 'op' },
 	],
-	items: [ {
-		nameDisplay: '123',
-		state: 'none'
-	} ],
-}
+	items: [],
+	page: null,
+})
 
+const ListStatus = ref([
+	{ label: '等待开始', value: 'WaitingStart' },
+	{ label: '进行中', value: 'Running' },
+	{ label: '成功结束', value: 'SuccessfulEnd' },
+	{ label: '失败结束', value: 'ErrorEnd' },
+	{ label: '手动结束', value: 'ShutdownEnd' },
+])
 const isDisplayTrainProcessHelp = ref(false)
 const ListTrainProcess = ref([
 	{
@@ -257,12 +283,18 @@ const ListAllHelp = ref([
 	{ label: '模型标签', value: ListLabeling.value },
 ])
 
+const inFilterName = ref('')
+const inFilterStatus = ref([])
 const isRefreshingTaskList = ref(false)
 async function refreshTaskList(name, status, pageIndex = 1, pageSize = 10)
 {
 	if(isRefreshingTaskList.value) return
 	isRefreshingTaskList.value = true
 
+	if(name == null) name = inFilterName.value
+	if(status == null) status = [...inFilterStatus.value]
+
+	let tableItems = tableModel.value.items
 	try
 	{
 		let raw = await get({
@@ -274,10 +306,17 @@ async function refreshTaskList(name, status, pageIndex = 1, pageSize = 10)
 				pageSize,
 			},
 		})
+		raw.name = name
+		raw.status = status
+		tableModel.value.page = raw
+
+		replace(tableItems, raw.records)
 	}
 	catch (any)
 	{
 		WaveUI.instance.notify('刷新任务列表出错: ' + any, 'error', 5000)
+		tableModel.value.page = null
+		replace(tableItems)
 	}
 	finally
 	{
@@ -287,11 +326,17 @@ async function refreshTaskList(name, status, pageIndex = 1, pageSize = 10)
 function triggerRefreshTaskList()
 {
 	if(isRefreshingTaskList.value) return
-	debounce(refreshTaskList, 1000)
+	debounce(refreshTaskList, 1000)()
 }
 function goPage(page)
 {
-	;
+	isRefreshingTaskList.value = true
+	const name = tableModel.value.page?.name ?? ''
+	const status = tableModel.value.page?.status ?? []
+	inFilterName.value = name
+	replace(inFilterStatus.value, status)
+	isRefreshingTaskList.value = false
+	refreshTaskList(name, status, page)
 }
 
 const inCreateTaskDatasetId = ref({})
@@ -375,4 +420,57 @@ async function createTask()
 		await refreshTaskList()
 	}
 }
+
+const isRequestingShutdown = ref(false)
+async function shutdownTask(task)
+{
+	if(isRequestingShutdown.value) return
+	isRequestingShutdown.value = true
+
+	try
+	{
+		await get({
+			url: '/task/shutdown',
+			params: { taskId: task.id },
+		})
+		WaveUI.instance.notify('成功停止任务', 'success', 3000)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('无法停止任务: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isRequestingShutdown.value = false
+
+		await refreshTaskList()
+	}
+}
+const isRequestingDelete = ref(false)
+async function deleteTask(task)
+{
+	if(isRequestingDelete.value) return
+	isRequestingDelete.value = true
+
+	try
+	{
+		await get({
+			url: '/task/delete',
+			params: { taskId: task.id },
+		})
+		WaveUI.instance.notify('成功删除任务', 'success', 3000)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('删除任务失败: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isRequestingDelete.value = false
+
+		await refreshTaskList()
+	}
+}
+
+onMounted(() => triggerRefreshTaskList())
 </script>

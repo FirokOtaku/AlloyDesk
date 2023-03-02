@@ -281,6 +281,6 @@ async function deleteModel(model)
 	}
 }
 
-onMounted(() => refreshModel())
+onMounted(() => refreshModel().finally(() => {}))
 
 </script>

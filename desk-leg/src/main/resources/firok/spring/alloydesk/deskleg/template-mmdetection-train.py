@@ -5,10 +5,12 @@
 # used dataset DATASET_ID
 _base_ = 'BASE_CONFIG'
 
+work_dir = 'WORK_DIR'
+
 model = dict(
     roi_head=dict(
-        bbox_head=dict(num_classes=COUNT_CLASS),
-        mask_head=dict(num_classes=COUNT_CLASS)))
+        bbox_head=dict(num_classes=COUNT_TYPES),
+        mask_head=dict(num_classes=COUNT_TYPES)))
 
 # 修改数据集相关设置
 dataset_type = 'CocoDataset'

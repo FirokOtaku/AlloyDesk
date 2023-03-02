@@ -13,10 +13,12 @@ import firok.spring.alloydesk.deskleg.service_multi.TagMultiService;
 import firok.topaz.spring.Ret;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpRequest;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -178,5 +180,15 @@ public class ModelController
 			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
 			return Ret.fail("删除模型出错");
 		}
+	}
+
+	@PostMapping("/test-one")
+	@CrossOrigin
+	public Ret<?> test(
+//			HttpRequest request
+	)
+	{
+//		System.out.println(request);
+		return Ret.success();
 	}
 }

@@ -8,12 +8,15 @@ import firok.spring.alloydesk.deskleg.config.MmdetectionHelper;
 import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
 import firok.topaz.platform.NativeProcess;
 import firok.topaz.resource.Files;
+import firok.topaz.thread.Threads;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.util.FileSystemUtils;
 
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
@@ -107,13 +110,22 @@ public class TrainTaskMultiService
 	{
 		return new File(folderTaskStorage, taskId).getCanonicalFile();
 	}
+	public File fileOfTrainBatch(String taskId) throws IOException
+	{
+		return new File(folderTaskStorage, taskId + "/" + taskId + ".bat").getCanonicalFile();
+	}
 	public File fileOfMmdetectionTaskConfig(String taskId) throws IOException
 	{
 		return new File(folderTaskStorage, taskId + "/" + taskId + ".py").getCanonicalFile();
 	}
 	public File folderOfMmdetectionTaskWorkdir(String taskId) throws IOException
 	{
-		return new File(folderMmdetection, "workdir/" + taskId).getCanonicalFile();
+		return new File(folderTaskStorage, taskId + "/mmdetection_workdir").getCanonicalFile();
+	}
+	public File[] filesOfMmdetectionTaskWorkdirCheckpoint(String taskId) throws IOException
+	{
+		var workdir = folderOfMmdetectionTaskWorkdir(taskId);
+		return workdir.listFiles((dir, name) -> name.endsWith(".pth") && !"latest.pth".equals(name));
 	}
 
 	@Autowired
@@ -122,10 +134,11 @@ public class TrainTaskMultiService
 	@Autowired
 	ModelMultiService serviceModelMulti;
 
+	private record ExecutionContext(String taskId, NativeProcess process, Thread thread) { }
 	/**
 	 * 任务 id -> 本地进程
 	 * */
-	private final Map<String, NativeProcess> mapTaskProcess = new HashMap<>();
+	private final Map<String, ExecutionContext> mapContext = new HashMap<>();
 
 	@Value("${firok.spring.alloydesk.mmdetection-pre-script}")
 	String preScript;
@@ -177,7 +190,7 @@ public class TrainTaskMultiService
 			// 创建任务记录
 			var now = new Date();
 			var task = new TrainTaskBean();
-			task.setState(TaskStateEnum.WaitingStart);
+			task.setState(TaskStateEnum.Running);
 			task.setDatasetId(datasetId);
 			task.setSourceModelId(modelId);
 			task.setCurrentModelId(modelId);
@@ -191,10 +204,12 @@ public class TrainTaskMultiService
 			serviceTask.save(task);
 
 			var taskId = task.getId(); // 任务 id
+			var folderWorkdir = folderOfMmdetectionTaskWorkdir(taskId);
 
 			// 创建 mmdetection 需要的配置文件
 			var contentConfigPy = helper.generateTrainScript(
 					fileModel,
+					folderWorkdir,
 					fileDatasetAnnotations,
 					folderDatasetImages,
 					taskId,
@@ -203,13 +218,44 @@ public class TrainTaskMultiService
 			var fileConfig = fileOfMmdetectionTaskConfig(taskId);
 			Files.writeTo(fileConfig, contentConfigPy);
 
+			// 创建启动训练所需的批处理
+			var fileBatch = fileOfTrainBatch(taskId);
+			var contentBatch = """
+                    %s
+                    python "%s" "%s"
+                    """.formatted(preScript, fileMmdetectionTrainPy, fileConfig);
+			Files.writeTo(fileBatch, contentBatch);
+
 			// 创建本地进程
-			// todo 等真机能用的时候再改
-//			var process = new NativeProcess(preScript);
-//			var cmd = """
-//                    %s -c %s
-//                    """.formatted(fileMmdetectionTrainPy, fileConfig);
-//			process.println(cmd);
+			var process = new NativeProcess(fileBatch.getAbsolutePath());
+			var thread = Threads.start(true, () -> {
+				var result = process.waitFor();
+				var beanUpdate = new TrainTaskBean();
+				beanUpdate.setId(taskId);
+				if(result != 0)
+				{
+					System.out.println("进程错误");
+					System.out.println(process.contentErr());
+					beanUpdate.setState(TaskStateEnum.ErrorEnd);
+				}
+				else
+				{
+					System.out.println("进程结束");
+					System.out.println(process.contentOut());
+					beanUpdate.setState(TaskStateEnum.SuccessfulEnd);
+				}
+				try
+				{
+					GlobalLock.lock();
+					serviceTask.updateById(beanUpdate);
+				}
+				finally
+				{
+					GlobalLock.unlock();
+				}
+			});
+			var context = new ExecutionContext(taskId, process, thread);
+			mapContext.put(taskId, context);
 
 			addLog(taskId, LevelKeypoint, "任务已创建");
 		}
@@ -233,49 +279,88 @@ public class TrainTaskMultiService
 			switch (task.getState())
 			{
 				case Running -> {
-					Exception exceptionStopProcess = null, exceptionStopTask = null;
-					try
+					var context = mapContext.get(taskId);
+					if(context != null)
 					{
-						var process = mapTaskProcess.get(taskId);
-						if(process == null) throw new IllegalStateException("找不到本地进程");
-						process.close();
+						context.process.close();
+						context.thread.interrupt();
 					}
-					catch (Exception any)
-					{
-						exceptionStopProcess = any;
-					}
-					try
-					{
-						var taskUpdate = new TrainTaskBean();
-						taskUpdate.setId(taskId);
-						taskUpdate.setState(TaskStateEnum.ShutdownEnd);
-						serviceTask.updateById(taskUpdate);
-						addLog(taskId, LevelKeypoint, "用户手动停止任务");
-					}
-					catch (Exception any)
-					{
-						exceptionStopTask = any;
-					}
+					var taskUpdate = new TrainTaskBean();
+					taskUpdate.setId(taskId);
+					taskUpdate.setState(TaskStateEnum.ShutdownEnd);
+					serviceTask.updateById(taskUpdate);
+					addLog(taskId, LevelKeypoint, "用户手动停止任务");
 
-					if(exceptionStopTask != null && exceptionStopProcess != null)
-						throw new IllegalArgumentException(
-								"无法停止任务和本地进程: %s; %s".formatted(
-										exceptionStopTask.getLocalizedMessage(),
-										exceptionStopProcess.getLocalizedMessage()
-								)
-						);
-					else if(exceptionStopTask != null)
-						throw new IllegalArgumentException(
-								"无法停止任务: %s".formatted(exceptionStopTask.getLocalizedMessage())
-						);
-					else if (exceptionStopProcess != null)
-						throw new IllegalArgumentException(
-								"无法停止本地进程: %s".formatted(exceptionStopProcess.getLocalizedMessage())
-						);
+//					Exception exceptionStopProcess = null, exceptionStopTask = null;
+//					try
+//					{
+//						var context = mapContext.get(taskId);
+//						if(context == null) throw new IllegalStateException("找不到本地进程");
+//						context.process.close();
+//						context.thread.interrupt();
+//					}
+//					catch (Exception any)
+//					{
+//						exceptionStopProcess = any;
+//					}
+//					try
+//					{
+//						var taskUpdate = new TrainTaskBean();
+//						taskUpdate.setId(taskId);
+//						taskUpdate.setState(TaskStateEnum.ShutdownEnd);
+//						serviceTask.updateById(taskUpdate);
+//						addLog(taskId, LevelKeypoint, "用户手动停止任务");
+//					}
+//					catch (Exception any)
+//					{
+//						exceptionStopTask = any;
+//					}
+//
+//					if(exceptionStopTask != null && exceptionStopProcess != null)
+//						throw new IllegalArgumentException(
+//								"无法停止任务和本地进程: %s; %s".formatted(
+//										exceptionStopTask.getLocalizedMessage(),
+//										exceptionStopProcess.getLocalizedMessage()
+//								)
+//						);
+//					else if(exceptionStopTask != null)
+//						throw new IllegalArgumentException(
+//								"无法停止任务: %s".formatted(exceptionStopTask.getLocalizedMessage())
+//						);
+//					else if (exceptionStopProcess != null)
+//						throw new IllegalArgumentException(
+//								"无法停止本地进程: %s".formatted(exceptionStopProcess.getLocalizedMessage())
+//						);
 				}
 				case WaitingStart -> throw new IllegalStateException("任务未开始");
 				case ShutdownEnd, SuccessfulEnd, ErrorEnd -> throw new IllegalStateException("任务已停止");
 			}
+		}
+		finally
+		{
+			GlobalLock.unlock();
+		}
+	}
+
+	public void deleteTask(String taskId) throws Exception
+	{
+		try
+		{
+			GlobalLock.lock();
+
+			var task = serviceTask.getById(taskId);
+			if (Objects.requireNonNull(task.getState()) == TaskStateEnum.Running)
+			{
+				throw new IllegalStateException("任务正在运行, 无法删除");
+			}
+
+			var folderTask = folderOfTask(taskId);
+			FileSystemUtils.deleteRecursively(folderTask);
+			serviceTask.removeById(taskId);
+		}
+		catch (Exception any)
+		{
+			throw any;
 		}
 		finally
 		{

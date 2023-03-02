@@ -5,7 +5,7 @@ export default {
 
     ModelManagement: 'model-management',
     TrainTaskManagement: 'train-task-management',
-    ModelTestingManagement: 'model-testing-management',
+    ModelTesting: 'model-testing',
     InferenceInterfaceManagement: 'inference-interface-management',
 
     UserManagement: 'user-management',

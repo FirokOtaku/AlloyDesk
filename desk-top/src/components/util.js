@@ -19,4 +19,13 @@ function debounce (fn, delay = 300)
     }
 }
 
-export { debounce, isAsync, callAnyway }
+function replace (array = [], content = null)
+{
+    if(array == null || !(array instanceof Array)) return
+    array.splice(0, array.length)
+
+    if(content != null && content[Symbol.iterator] === undefined) return
+    array.push(...content)
+}
+
+export { debounce, isAsync, callAnyway, replace }

@@ -48,6 +48,8 @@ public class TrainTaskController
 				serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "未正常结束, 强制停止");
 
 			serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+
+			System.out.printf("更新 %d 个状态错误任务%n", setId.size());
 		}
 		catch (Exception ignored) { }
 	}
@@ -61,6 +63,8 @@ public class TrainTaskController
 			serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "系统停止, 强制停止");
 
 		serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+
+		System.out.printf("停止 %d 个未停止任务%n", setId.size());
 	}
 
 	public record CreateMmdetectionTaskParam(
@@ -121,6 +125,25 @@ public class TrainTaskController
 		try
 		{
 			serviceMulti.shutdownTask(taskId);
+			return Ret.success();
+		}
+		catch (Exception any)
+		{
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			any.printStackTrace(System.err);
+			return Ret.fail(any);
+		}
+	}
+
+	@GetMapping("/delete")
+	@Transactional(rollbackFor = Throwable.class)
+	public Ret<?> deleteTask(
+			@RequestParam("taskId") String taskId
+	)
+	{
+		try
+		{
+			serviceMulti.deleteTask(taskId);
 			return Ret.success();
 		}
 		catch (Exception any)

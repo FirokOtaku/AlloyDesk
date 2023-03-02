@@ -29,8 +29,9 @@ server:
   compression:
     enabled: true
   server-header: Alloy Furnace
-  tomcat:
-    max-http-form-post-size: 200MB
+#  tomcat:
+#    max-http-form-post-size: 200MB
+#    max-swallow-size: 200MB
 
 #mybatis:
 #  configuration:
@@ -62,6 +63,11 @@ spring:
       max-lifetime: 1800000
       connection-timeout: 30000
       connection-test-query: select * from information_schema.tables limit 1
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 1GB
+      max-request-size: 1GB
   #  web:
   #    resources:
   #      static-locations:

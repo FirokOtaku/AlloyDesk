@@ -7,6 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -43,6 +46,15 @@ public class DataSourceController
 			@RequestParam("desc") String description
 	)
 	{
+		try
+		{
+			new URL(url);
+		}
+		catch (MalformedURLException e)
+		{
+			return Ret.fail("无法解析 URL");
+		}
+
 		var bean = new DataSourceBean();
 		bean.setUrl(url);
 		bean.setToken(token);

@@ -71,15 +71,16 @@ import {computed, ref} from 'vue'
 import LeftPanel from "@/components/LeftPanel.vue"
 import RightPanel from "@/components/RightPanel.vue"
 import Tabs from "@/components/tabs"
-import TabModelManagement from "@/components/TabModelManagement.vue"
-import TabDataSourceManagement from "@/components/TabDataSourceManagement.vue"
-import TabDatasetManagement from "@/components/TabDatasetManagement.vue"
-import TabTrainTaskManagement from "@/components/TabTrainTaskManagement.vue"
-import TabIndex from "@/components/TabIndex.vue"
-import WaveUI from "wave-ui"
+import TabModelManagement from '@/components/TabModelManagement.vue'
+import TabDataSourceManagement from '@/components/TabDataSourceManagement.vue'
+import TabDatasetManagement from '@/components/TabDatasetManagement.vue'
+import TabTrainTaskManagement from '@/components/TabTrainTaskManagement.vue'
+import TabIndex from '@/components/TabIndex.vue'
+import TabModelTesting from '@/components/TabModelTesting.vue'
+import WaveUI from 'wave-ui'
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.TrainTaskManagement)
+const currentTab = ref(Tabs.ModelTesting)
 const currentTabClass = computed(() => {
 	switch(currentTab.value)
 	{
@@ -88,6 +89,7 @@ const currentTabClass = computed(() => {
 		case Tabs.DatasetManagement: return TabDatasetManagement
 		case Tabs.TrainTaskManagement: return TabTrainTaskManagement
 		case Tabs.ModelManagement: return TabModelManagement
+		case Tabs.ModelTesting: return TabModelTesting
 		default: return null
 	}
 })
@@ -142,11 +144,13 @@ function selectPallet(bean)
 const refRightPanel = ref()
 const isRightPanelOpen = ref(false)
 const listPalletDataset = ref(
-	[{"palletType":"dataset","id":"1aaab2fb-b77f-4305-890b-676db5716a78","createTimestamp":"2023-02-24T06:59:44.000+00:00","createUserId":"","nameDisplay":"3","description":"3","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":6,"pullSourceName":"local","pullSourceProjectName":"manual-combine-1-2","pullTimestamp":"2023-02-24T06:59:44.000+00:00","pictureCount":4,"annotationCount":6,"_uid":"1aaab2fb-b77f-4305-890b-676db5716a78"},{"palletType":"dataset","id":"a346d712-a6ef-4485-8126-cd8bece3f30a","createTimestamp":"2023-02-24T06:59:17.000+00:00","createUserId":"","nameDisplay":"1","description":"1","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":1,"pullSourceName":"local","pullSourceProjectName":"project-1","pullTimestamp":"2023-02-24T06:59:17.000+00:00","pictureCount":3,"annotationCount":4,"_uid":"a346d712-a6ef-4485-8126-cd8bece3f30a"}]
+	// [{"palletType":"dataset","id":"1aaab2fb-b77f-4305-890b-676db5716a78","createTimestamp":"2023-02-24T06:59:44.000+00:00","createUserId":"","nameDisplay":"3","description":"3","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":6,"pullSourceName":"local","pullSourceProjectName":"manual-combine-1-2","pullTimestamp":"2023-02-24T06:59:44.000+00:00","pictureCount":4,"annotationCount":6,"_uid":"1aaab2fb-b77f-4305-890b-676db5716a78"},{"palletType":"dataset","id":"a346d712-a6ef-4485-8126-cd8bece3f30a","createTimestamp":"2023-02-24T06:59:17.000+00:00","createUserId":"","nameDisplay":"1","description":"1","status":"Ready","pullSourceId":"246e40a2-18e9-4961-af6c-52196bc10565","pullSourceProjectId":1,"pullSourceName":"local","pullSourceProjectName":"project-1","pullTimestamp":"2023-02-24T06:59:17.000+00:00","pictureCount":3,"annotationCount":4,"_uid":"a346d712-a6ef-4485-8126-cd8bece3f30a"}]
+	[]
 )
 // const listPalletDataSource = ref([])
 const listPalletModel = ref(
-	[{"palletType":"model","id":"1629814265044996097","createTimestamp":"2023-02-26T12:02:56.000+00:00","createUserId":"","displayName":"1","modelType":"Mmdetection","sourceTaskId":null,"tags":["1"],"_uid":"1629814265044996097"}]
+	// [{"palletType":"model","id":"1629814265044996097","createTimestamp":"2023-02-26T12:02:56.000+00:00","createUserId":"","displayName":"1","modelType":"Mmdetection","sourceTaskId":null,"tags":["1"],"_uid":"1629814265044996097"}]
+	[]
 )
 const countPalletTotal = computed(() => {
 	return listPalletDataset.value.length + listPalletModel.value.length

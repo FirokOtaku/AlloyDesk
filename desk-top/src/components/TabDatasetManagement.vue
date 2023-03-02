@@ -37,6 +37,15 @@
 		         :items="tableModel.items" fixed-headers
 		         :loading="isRefreshingDataset"
 		         style="min-height: 350px">
+			<template #item-cell.nameDisplay="{ item }">
+				{{item.nameDisplay}}
+				<CopyIcon :enable-copy="false"
+				          v-if="item.description !== ''"
+				          color="#201a30"
+				          size="0.9"
+				          icon="more"
+				          :tooltip="item.description"/>
+			</template>
 			<template #item-cell.content="{ item, label, header, index }">
 				<span v-if="item.status === 'Pulling' "></span>
 
@@ -178,8 +187,9 @@
 import { ref, onMounted } from "vue"
 import WaveUI from "wave-ui"
 import {get, post} from "@/components/networks"
-import {debounce} from "@/components/util"
+import {debounce,replace} from "@/components/util"
 import Pagination from "@/components/Pagination.vue";
+import CopyIcon from "@/components/CopyIcon.vue";
 
 const isRefreshingDataset = ref(false)
 const tableModel = ref({
@@ -188,7 +198,7 @@ const tableModel = ref({
 		{ label: '内容', key: 'content' },
 		{ label: '状态', key: 'status' },
 		{ label: '源', key: 'source' },
-		{ label: '备注', key: 'description' },
+		// { label: '备注', key: 'description' },
 		{ label: '操作', key: 'op' },
 	],
 	items: [],
@@ -211,9 +221,9 @@ async function refreshDataset(name, status, pageIndex = 1, pageSize = 10)
 	if(!name) name = inFilterDatasetName.value
 	if(!status) status = [...inFilterDatasetStatus.value]
 
+	const tableItems = tableModel.value.items
 	try
 	{
-		const tableItems = tableModel.value.items
 		const raw = await get({
 			url: '/dataset/list-all',
 			params: {
@@ -224,8 +234,7 @@ async function refreshDataset(name, status, pageIndex = 1, pageSize = 10)
 			},
 		})
 		const listDataset = raw['records']
-		tableItems.splice(0, tableItems.length)
-		tableItems.push(...listDataset)
+		replace(tableItems, listDataset)
 		raw.filterName = name
 		raw.filterStatus = status
 		tableModel.value.page = raw
@@ -234,7 +243,7 @@ async function refreshDataset(name, status, pageIndex = 1, pageSize = 10)
 	{
 		WaveUI.instance.notify('刷新失败', 'error', 5000)
 		tableModel.value.page = null
-		tableModel.value.items.splice(0, tableModel.value.items.length)
+		replace(tableItems)
 	}
 	finally
 	{
@@ -251,8 +260,7 @@ function goPage(page)
 	const name = tableModel.value.page.filterName, status = tableModel.value.page.filterStatus
 	isRefreshingDataset.value = true
 	inFilterDatasetName.value = name
-	inFilterDatasetStatus.value.splice(0, inFilterDatasetStatus.value.length)
-	inFilterDatasetStatus.value.push(...status)
+	replace(inFilterDatasetStatus.value, status)
 	isRefreshingDataset.value = false
 	refreshDataset(name, status, page)
 }
@@ -272,13 +280,12 @@ async function refreshDataSource()
 		const listSource = await get({
 			url: '/data-source/list-all',
 		})
-		storage.splice(0, storage.length)
 		for(const source of listSource)
 		{
 			const { nameDisplay } = source
 			source.labelDisplay = nameDisplay
 		}
-		storage.push(...listSource)
+		replace(storage, listSource)
 	}
 	catch (any)
 	{
@@ -309,13 +316,12 @@ async function refreshSourceDataset()
 			params: { sourceId },
 		})
 		const listDataset = rawDataset['results']
-		storage.splice(0, storage.length)
 		for(const dataset of listDataset)
 		{
 			const { title } = dataset
 			dataset.labelDisplay = title
 		}
-		storage.push(...listDataset)
+		replace(storage, listDataset)
 	}
 	catch (any)
 	{
@@ -396,8 +402,8 @@ async function deleteDataset(item)
 }
 
 onMounted(() => {
-	refreshDataset()
-	refreshDataSource()
+	refreshDataset().finally(() => {})
+	refreshDataSource().finally(() => {})
 })
 
 defineEmits([
