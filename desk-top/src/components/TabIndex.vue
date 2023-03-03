@@ -6,29 +6,29 @@
 <w-flex wrap>
 	<div class="xs12 sm6 md4 lg4 xl4 small-padding">
 		<w-card>
-			c1
+			Alloy Desk
 		</w-card>
 	</div>
 
-	<div class="xs12 sm6 md4 lg4 xl4 small-padding">
+	<div class="xs12 sm6 md4 lg4 xl4 small-padding" v-if="false">
 		<w-card>
 			c2
 		</w-card>
 	</div>
 
-	<div class="xs12 sm6 md4 lg4 xl4 small-padding">
+	<div class="xs12 sm6 md4 lg4 xl4 small-padding" v-if="false">
 		<w-card>
 			c3
 		</w-card>
 	</div>
 
-	<div class="xs12 sm6 md4 lg4 xl4 small-padding">
+	<div class="xs12 sm6 md4 lg4 xl4 small-padding" v-if="false">
 		<w-card>
 			c4
 		</w-card>
 	</div>
 
-	<div class="xs12 sm6 md4 lg4 xl4 small-padding">
+	<div class="xs12 sm6 md4 lg4 xl4 small-padding" v-if="false">
 		<w-card>
 			c5
 		</w-card>

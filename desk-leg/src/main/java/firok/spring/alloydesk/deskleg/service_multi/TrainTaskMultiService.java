@@ -402,10 +402,20 @@ public class TrainTaskMultiService
                     """.formatted(preScript, fileMmdetectionTrainPy, fileConfig);
 					Files.writeTo(fileBatch, contentBatch);
 					//   创建本地进程并等待其运行结束
-					try(var process = new NativeProcess(fileBatch.getAbsolutePath()))
+					try(var process = new NativeProcess( // todo 换成其它储存方式
+							fileBatch.getAbsolutePath(),
+							System.out::println,
+							System.err::println
+					))
 					{
 						addLog(taskId, LevelKeypoint, "启动训练");
-						process.waitFor();
+						int result = process.waitFor();
+						if(result != 0)
+						{
+							addLog(taskId, LevelKeypoint, "训练发生错误");
+							throw new RuntimeException("训练发生错误");
+						}
+
 						addLog(taskId, LevelKeypoint, "训练结束");
 					}
 

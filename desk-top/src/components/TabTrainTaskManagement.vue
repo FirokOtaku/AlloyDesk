@@ -197,7 +197,7 @@ const emits = defineEmits([
 	'show-right-panel', // 显示右侧暂存区
 ])
 
-const isDisplayCreateTaskModal = ref(true)
+const isDisplayCreateTaskModal = ref(false)
 const tableModel = ref({
 	headers: [
 		{ label: '名称', key: 'displayName' },
@@ -237,8 +237,7 @@ const ListTrainProcess = ref([
 		label: 'WHILE (TRUE) FOR (x)',
 		value: 'round1X',
 		desc: [
-			'训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 直到手动停止',
-			`<span class="small-text yellow-dark3">遇到错误后自动停止</span>`
+			'训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 需手动停止'
 		],
 	},
 	// {
@@ -255,7 +254,7 @@ const ListModelSave = ref([
 		value: 'saveEnd',
 		desc: [
 			`保存最后一轮训练生成的模型数据`,
-			`使用 <span class="purple-dark2">FOR (y) FOR (x)</span> 模式时会保存每一大轮末尾的模型数据`
+			`使用 <span class="purple-dark2">FOR (y) FOR (x)</span> 或 <span class="purple-dark2">WHILE(TRUE) FOR(x)</span> 模式时会保存每一大轮末尾的模型数据`
 		],
 	},
 	{
@@ -274,7 +273,6 @@ const ListLabeling = ref([
 		desc: [
 			`所有保存的模型数据都有如下基础标签:`,
 			`<span class="blue-dark1">任务生成</span>`,
-			`<span class="blue-dark1">生成日期</span>`,
 			`可以手动指定更多标签`
 		],
 	},

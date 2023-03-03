@@ -37,11 +37,6 @@ body
 
 		<main class="grow">
 			<div class="responsive">
-<!--				<TabDataSourceManagement ref="refTab" v-if="currentTab === Tabs.DataSourceManagement"/>-->
-<!--				<TabDatasetManagement ref="refTab" v-if="currentTab === Tabs.DatasetManagement"/>-->
-<!--				<TabTrainTaskManagement ref="refTab" v-if="currentTab === Tabs.TrainTaskManagement"/>-->
-
-<!--				<TabModelManagement ref="refTab" v-else-if="currentTab === Tabs.ModelManagement"/>-->
 				<component :is="currentTabClass" ref="refTab"
 				           :list-dataset="listPalletDataset"
 				           :list-model="listPalletModel"
@@ -80,7 +75,7 @@ import TabModelTesting from '@/components/TabModelTesting.vue'
 import WaveUI from 'wave-ui'
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.ModelTesting)
+const currentTab = ref(Tabs.Index)
 const currentTabClass = computed(() => {
 	switch(currentTab.value)
 	{
