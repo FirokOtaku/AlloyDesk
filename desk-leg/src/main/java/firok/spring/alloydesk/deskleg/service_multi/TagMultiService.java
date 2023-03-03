@@ -16,6 +16,15 @@ public class TagMultiService
 	@Autowired
 	IService<TagBean> service;
 
+	public Set<String> getTagValues(TagTypeEnum type, String targetId)
+	{
+		var qwTagId = new QueryWrapper<TagBean>().lambda()
+				.select(TagBean::getTagValue)
+				.eq(TagBean::getTagType, type)
+				.eq(TagBean::getId, targetId);
+		var list = service.list(qwTagId);
+		return list.stream().map(TagBean::getTagValue).collect(Collectors.toSet());
+	}
 	public Map<String, Set<String>> getTagValues(TagTypeEnum type, Collection<String> targetIds)
 	{
 		var qwTagId = new QueryWrapper<TagBean>().lambda()

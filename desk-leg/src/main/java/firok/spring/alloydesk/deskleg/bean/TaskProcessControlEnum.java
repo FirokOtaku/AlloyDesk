@@ -7,7 +7,7 @@ public enum TaskProcessControlEnum
 	RoundX("roundX"),
 	RoundXY("roundXY"),
 	Round1X("round1X"),
-	Script("script"),
+//	Script("script"),
 
 	;
 	@JsonValue

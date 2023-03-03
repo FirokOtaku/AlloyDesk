@@ -92,7 +92,13 @@ public class MmdetectionHelper
 			File fileCoco,
 			File folderImage,
 			String taskId,
-			TrainTaskController.CreateMmdetectionTaskParam params
+			String displayName,
+			String modelId,
+			String datasetId,
+			BigDecimal lr,
+			BigDecimal momentum,
+			BigDecimal weightDecay,
+			int epoch
 	) throws Exception
 	{
 		if(fileModel == null) fileModel = fileBaseModel;
@@ -119,25 +125,18 @@ public class MmdetectionHelper
 		//noinspection deprecation
 		map.put(PatternGenerateDatetime, new Date().toLocaleString());
 		map.put(PatternTaskId, taskId);
-		map.put(PatternTaskName, params.displayName());
-		map.put(PatternUsedModel, params.modelId());
-		map.put(PatternUsedDataset, params.datasetId());
+		map.put(PatternTaskName, displayName);
+		map.put(PatternUsedModel, modelId);
+		map.put(PatternUsedDataset, datasetId);
 		map.put(PatternBaseConfig, fileBaseConfig);
 		map.put(PatternImagePrefix, folderImage.getAbsolutePath().replaceAll("\\\\", "/"));
 		map.put(PatternAnnoFile, fileCoco.getAbsolutePath().replaceAll("\\\\", "/"));
 		map.put(PatternClasses, contentTypes);
 		map.put(PatternCountClasses, String.valueOf(countTypes));
-		map.put(PatternLr, params.lr().toPlainString());
-		map.put(PatternMomentum, params.momentum().toPlainString());
-		map.put(PatternWeightDecay, params.weightDecay().toPlainString());
-		map.put(PatternMaxEpoch, String.valueOf(
-				switch(params.processControlMethod())
-				{
-					case RoundX, Round1X -> params.epochX();
-					case RoundXY -> params.epochY();
-					default -> (Integer) 0;
-				}
-		));
+		map.put(PatternLr, lr.toPlainString());
+		map.put(PatternMomentum, momentum.toPlainString());
+		map.put(PatternWeightDecay, weightDecay.toPlainString());
+		map.put(PatternMaxEpoch, String.valueOf(epoch));
 		map.put(PatternCheckpoint, fileModel.getAbsolutePath().replaceAll("\\\\", "/"));
 		return pipeline.replaceAll(TemplateMmdetectionConfig, map);
 	}

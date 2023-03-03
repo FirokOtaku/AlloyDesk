@@ -41,13 +41,13 @@ public class TrainTaskController
 		// 因为有可能数据库还没初始化 这个可能出错 先不用管
 		try
 		{
-			var setId = serviceMulti.findIdWithState(TaskStateEnum.Running);
+			var setId = serviceMulti.findIdWithState(TaskStateEnum.Running, TaskStateEnum.Starting, TaskStateEnum.Stopping);
 			if(setId.isEmpty()) return;
 
 			for(var taskId : setId)
 				serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "未正常结束, 强制停止");
 
-			serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+			serviceMulti.updateStates(setId, TaskStateEnum.ErrorEnd);
 
 			System.out.printf("更新 %d 个状态错误任务%n", setId.size());
 		}
@@ -62,25 +62,27 @@ public class TrainTaskController
 		for(var taskId : setId)
 			serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "系统停止, 强制停止");
 
-		serviceMulti.updateStateByIds(setId, TaskStateEnum.ErrorEnd);
+		serviceMulti.updateStates(setId, TaskStateEnum.ErrorEnd);
 
 		System.out.printf("停止 %d 个未停止任务%n", setId.size());
 	}
 
 	public record CreateMmdetectionTaskParam(
 			String displayName,
-			String modelId,
-			String datasetId,
+			String initModelId,
+			String initDatasetId,
 			TaskModelStorageEnum modelStorageMethod,
 			TaskProcessControlEnum processControlMethod,
 			FrameworkTypeEnum frameworkType,
 			String[] labels,
-			String script,
+//			String script,
 			Integer epochX,
 			Integer epochY,
 			BigDecimal lr,
 			BigDecimal momentum,
-			BigDecimal weightDecay
+			BigDecimal weightDecay,
+			TaskStartControlEnum startControlMethod, // 是否立刻开始任务
+			String startControlParam
 	) { }
 	@Transactional(rollbackFor = Throwable.class)
 	@PostMapping("/create-mmdetection")

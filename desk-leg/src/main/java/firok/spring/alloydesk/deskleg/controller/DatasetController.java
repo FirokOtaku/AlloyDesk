@@ -231,9 +231,6 @@ public class DatasetController
 				// 停止任务
 				case Pulling:
 					throw new IllegalArgumentException("仍在拉取");
-				// 不能删除
-				case Occupied:
-					throw new IllegalArgumentException("数据集正被使用中");
 				default:
 					throw new IllegalArgumentException("数据集状态异常");
 			}

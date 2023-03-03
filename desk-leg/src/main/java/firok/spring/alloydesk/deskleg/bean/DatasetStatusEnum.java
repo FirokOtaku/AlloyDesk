@@ -15,11 +15,6 @@ public enum DatasetStatusEnum
 	Ready("ready"),
 
 	/**
-	 * 正在被使用, 可以创建新的任务, 但是不能删除
-	 * */
-	Occupied("occupied"),
-
-	/**
 	 * 数据集损坏
 	 * */
 	Broken("broken"),

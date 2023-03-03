@@ -4,11 +4,13 @@ import firok.spring.dbsculptor.DirectMapper;
 import firok.spring.dbsculptor.Dubnium;
 import firok.spring.dbsculptor.DubniumSculptor;
 import firok.spring.mvci.runtime.CurrentMappers;
+import firok.topaz.Topaz;
 import firok.topaz.general.Version;
 import jakarta.annotation.PostConstruct;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.annotation.MapperScans;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -34,7 +36,10 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @SpringBootApplication
 public class DeskLegApplication
 {
-	public static final Version VERSION = new Version(0, 8, 0);
+	public static final String NAME = "Alloy Desk";
+	public static final Version VERSION = new Version(0, 9, 0);
+	public static final String AUTHOR = "Firok";
+	public static final String LINK = "https://github.com/FirokOtaku/AlloyDesk";
 
 	public static void main(String[] args) throws Exception
 	{

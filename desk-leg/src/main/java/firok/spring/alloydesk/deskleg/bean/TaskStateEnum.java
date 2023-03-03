@@ -11,9 +11,19 @@ public enum TaskStateEnum
 	WaitingStart,
 
 	/**
+	 * 启动中
+	 * */
+	Starting,
+
+	/**
 	 * 进行中的任务
 	 * */
 	Running,
+
+	/**
+	 * 停止中
+	 * */
+	Stopping,
 
 	/**
 	 * 成功并停止

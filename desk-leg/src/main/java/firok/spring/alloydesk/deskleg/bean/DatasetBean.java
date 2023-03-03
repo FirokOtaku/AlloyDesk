@@ -84,4 +84,27 @@ public class DatasetBean extends BaseBean
 	 * 标注数量
 	 * */
 	Long annotationCount;
+
+	/**
+	 * 检查这个数据集是否可以用于训练
+	 * */
+	public static void checkForTraining(DatasetBean bean)
+	{
+		if(bean == null) throw new IllegalStateException("数据集不存在");
+		switch (bean.status)
+		{
+			case null -> throw new IllegalStateException("数据集状态错误");
+			case Pulling -> throw new IllegalStateException("数据集正在拉取");
+			case Logical -> throw new IllegalStateException("数据集仅存档");
+			case Broken -> throw new IllegalStateException("数据集已损坏");
+			default ->
+			{
+				if(bean.annotationCount == null || bean.annotationCount <= 0)
+					throw new IllegalStateException("数据集没有标注数据");
+				if(bean.pictureCount == null || bean.pictureCount <= 0)
+					throw new IllegalStateException("数据集没有图片数据");
+
+			}
+		}
+	}
 }

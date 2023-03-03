@@ -156,17 +156,17 @@
 				<!-- todo -->
 			</w-button>
 
-			<w-button v-if="item.state === 'WaitingStart'" :disabled="true">
+			<w-button v-if="item.state === 'WaitingStart'" :disabled="true" class="mr2">
 				启动
 			</w-button>
 
-			<w-button v-else-if="item.state === 'Running'"
+			<w-button v-if="item.state === 'Running'"
 			          :disabled="isRefreshingTaskList || isRequestingShutdown"
 			          @click="shutdownTask(item)">
 				停止
 			</w-button>
 
-			<w-button v-else-if="item.state.endsWith('End')"
+			<w-button v-else-if="item.state === 'WaitingStart' || item.state.endsWith('End')"
 			          :disabled="isRefreshingTaskList || isRequestingDelete"
 			          @click="deleteTask(item)">
 				删除
@@ -211,6 +211,8 @@ const tableModel = ref({
 const ListStatus = ref([
 	{ label: '等待开始', value: 'WaitingStart' },
 	{ label: '进行中', value: 'Running' },
+	{ label: '启动中', value: 'Starting' },
+	{ label: '停止中', value: 'Stopping' },
 	{ label: '成功结束', value: 'SuccessfulEnd' },
 	{ label: '失败结束', value: 'ErrorEnd' },
 	{ label: '手动结束', value: 'ShutdownEnd' },
@@ -225,7 +227,7 @@ const ListTrainProcess = ref([
 		],
 	},
 	{
-		label: 'FOR (x) FOR (y)',
+		label: 'FOR (y) FOR (x)',
 		value: 'roundXY',
 		desc: [
 			`训练将会运行 <span class="blue-dark1">x</span> 轮, 然后以最后一轮生成的模型再次开始, 重复 <span class="blue-dark1">y</span> 次`
@@ -253,7 +255,7 @@ const ListModelSave = ref([
 		value: 'saveEnd',
 		desc: [
 			`保存最后一轮训练生成的模型数据`,
-			`使用 <span class="purple-dark2">FOR (x) FOR (y)</span> 模式时会保存每一大轮末尾的模型数据`
+			`使用 <span class="purple-dark2">FOR (y) FOR (x)</span> 模式时会保存每一大轮末尾的模型数据`
 		],
 	},
 	{
@@ -271,8 +273,8 @@ const ListLabeling = ref([
 		value: 'null',
 		desc: [
 			`所有保存的模型数据都有如下基础标签:`,
-			`<span class="blue-dark1">任务生成 - {任务名称} - {轮数}</span>`,
-			`<span class="blue-dark1">生成日期 - {年}/{月}/{日}</span>`,
+			`<span class="blue-dark1">任务生成</span>`,
+			`<span class="blue-dark1">生成日期</span>`,
 			`可以手动指定更多标签`
 		],
 	},

@@ -39,7 +39,7 @@ server:
 
 logging:
   file:
-    path: ./ally-desk-log/
+    path: ./alloy-desk-log/
   logback:
     rollingpolicy:
       clean-history-on-start: true

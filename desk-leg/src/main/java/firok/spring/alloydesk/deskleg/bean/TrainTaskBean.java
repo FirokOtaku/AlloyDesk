@@ -42,7 +42,7 @@ public class TrainTaskBean extends BaseBean
 	/**
 	 * 训练开始时使用的模型 id
 	 * */
-	private String sourceModelId;
+	private String initModelId;
 
 	/**
 	 * 训练任务当前使用的模型 id
@@ -52,11 +52,17 @@ public class TrainTaskBean extends BaseBean
 	/**
 	 * 训练任务使用的模型 id
 	 * */
-	private String datasetId;
+	private String initDatasetId;
+	/**
+	 * 当前使用的数据集 id
+	 * */
+	private String currentDatasetId;
 
 	private TaskModelStorageEnum storageMethod;
 
 	private TaskProcessControlEnum processControlMethod;
+
+	private TaskStartControlEnum startControlMethod;
 
 	/**
 	 * 框架类型
