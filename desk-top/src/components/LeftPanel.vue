@@ -34,8 +34,8 @@
 </template>
 
 <script setup>
-import {ref} from "vue"
-import Tabs from './tabs'
+import {computed, ref} from "vue"
+import {Tabs, Groups} from './tabs'
 
 const props = defineProps({
 	isOpen: Boolean
@@ -46,61 +46,41 @@ const emits = defineEmits([
 	'open-tab',
 ])
 
-const items = ref([
+const items = computed(() => {
+	const ret = []
+	for(const keyGroup in Groups)
 	{
-		label: '系统',
-		class: 'left-panel-list-group'
-	},
-	{
-		label: '概览',
-		tab: Tabs.Index
-	},
-	{
-		label: '操作手册',
-		tab: Tabs.UserManual
-	},
+		const Group = Groups[keyGroup]
+		ret.push({
+			label: Group.label,
+			class: 'left-panel-list-group'
+		})
 
-	{
-		label: '数据',
-		class: 'left-panel-list-group'
-	},
-	{
-		label: '数据源管理',
-		tab: Tabs.DataSourceManagement
-	},
-	{
-		label: '数据集管理',
-		tab: Tabs.DatasetManagement
-	},
-	{
-		label: '模型',
-		class: 'left-panel-list-group'
-	},
-	{
-		label: '模型管理',
-		tab: Tabs.ModelManagement
-	},
-	{
-		label: '训练任务管理',
-		tab: Tabs.TrainTaskManagement
-	},
-	{
-		label: '模型测试',
-		tab: Tabs.ModelTestingManagement
-	},
-	{
-		label: '推理接口管理',
-		tab: Tabs.InferenceInterfaceManagement
-	},
+		for(const Tab of Group.tabs)
+		{
+			if(Tab.hidden) continue
 
-])
+			ret.push({
+				label: Tab.label,
+				tab: Tab.key
+			})
+		}
+	}
+	return ret
+})
 
 function itemClick(item)
 {
 	const title = item?.target?.innerText ?? ''
-	for(const item of items.value)
-		if(item.label === title && item.tab != null)
-			emits('open-tab', item.tab ?? Tabs.Unknown)
+	for(const keyTab in Tabs)
+	{
+		const Tab = Tabs[keyTab]
+		if(Tab.label === title)
+		{
+			emits('open-tab', { tab: Tab, params: null })
+			break
+		}
+	}
 }
 
 </script>

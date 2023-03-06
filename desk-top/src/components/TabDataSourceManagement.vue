@@ -180,7 +180,7 @@ const tableModel = ref({
 		{ label: '名称', key: 'nameDisplay' },
 		{ label: '主机', key: 'url' },
 		{ label: '鉴权', key: 'token' },
-		{ label: '源', key: 'source' },
+		// { label: '源', key: 'source' },
 		{ label: '备注', key: 'description' },
 		{ label: '操作', key: 'op' },
 	],

@@ -24,7 +24,7 @@ function replace (array = [], content = null)
     if(array == null || !(array instanceof Array)) return
     array.splice(0, array.length)
 
-    if(content != null && content[Symbol.iterator] === undefined) return
+    if(content == null || content[Symbol.iterator] === undefined) return
     array.push(...content)
 }
 

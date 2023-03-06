@@ -247,4 +247,25 @@ public class DatasetController
 			GlobalLock.unlock();
 		}
 	}
+
+	/**
+	 * 获取一个数据集的查看地址
+	 * */
+	@GetMapping("/view-link")
+	public Ret<String> getViewLink(
+			@RequestParam("id") String id
+	)
+	{
+		var dataset = serviceDataset.getById(id);
+		if(dataset == null) return Ret.fail("不存在的数据集");
+		var sourceId = dataset.getPullSourceId();
+		var sourceProjectId = dataset.getPullSourceProjectId();
+		if(sourceId == null || "".equals(sourceId))
+			return Ret.fail("非拉取数据源");
+		var source = serviceSource.getById(sourceId);
+		if(source == null)
+			return Ret.fail("数据源不存在或被删除");
+		var link = "%s/projects/%d/data".formatted(source.getUrl(), sourceProjectId);
+		return Ret.success(link);
+	}
 }

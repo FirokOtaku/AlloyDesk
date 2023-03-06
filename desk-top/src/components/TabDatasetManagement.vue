@@ -25,10 +25,18 @@
 			刷新
 		</w-button>
 
-		<w-button bg-color="success"
+		<w-button bg-color="success-light1"
 		          class="small-margin"
 		          @click="isDisplayPullDatasetModal = true">
-			拉取数据集
+			拉取
+		</w-button>
+
+		<w-button bg-color="success-light1"
+		          class="small-margin"
+		          @click="isDisplayUploadDatasetModel = true"
+		          v-if="false">
+			<!-- todo 有空再说 -->
+			上传
 		</w-button>
 	</div>
 
@@ -73,7 +81,7 @@
 			</template>
 
 			<template #item-cell.op="{ item, label, header, index }">
-				<w-button class="small-margin">
+				<w-button class="small-margin" @click="viewDataset(item)">
 					查看
 				</w-button>
 
@@ -122,6 +130,7 @@
 				v-model="selectedSource"
 				@item-select="refreshSourceDataset"
 				:disabled="isRefreshingDataSource || isRefreshingSourceDataset"
+				:readonly="isRefreshingDataSource || isRefreshingSourceDataset"
 				color="blue">
 				数据源
 
@@ -141,6 +150,7 @@
 				item-value-key="id"
 				v-model="selectedDataset"
 				:disabled="isRefreshingDataSource || isRefreshingSourceDataset"
+				:readonly="isRefreshingDataSource || isRefreshingSourceDataset"
 				color="blue">
 				项目
 			</w-select>
@@ -151,20 +161,22 @@
 				class="mb4"
 				label="显示名称"
 				v-model="inNameDisplay"
-				:disabled="isRequestingPulling"/>
+				:disabled="isRequestingPulling"
+				:readonly="isRequestingPulling"/>
 
 			<w-input
 				class="mb4"
 				label="备注"
 				v-model="inDescription"
-				:disabled="isRequestingPulling"/>
+				:disabled="isRequestingPulling"
+				:readonly="isRequestingPulling"/>
 
 
 			<div class="right-align">
 				<w-button
 					bg-color="primary"
 					class="small-margin"
-					:disabled="false"
+					:disabled="isRequestingPulling"
 					@click="btnPullDatasetModal">
 					拉取
 				</w-button>
@@ -172,8 +184,42 @@
 				<w-button
 					bg-color="secondary"
 					class="small-margin"
-					:disabled="false"
+					:disabled="isRequestingPulling"
 					@click="isDisplayPullDatasetModal = false">
+					关闭
+				</w-button>
+			</div>
+		</w-card>
+	</w-overlay>
+
+	<w-overlay :model-value="isDisplayUploadDatasetModel" :persistent="true">
+		<w-card title="上传数据集"
+		        title-class="primary--bg"
+		        content-class="white--bg" style="width: 400px">
+
+			<w-input>
+				名称
+			</w-input>
+
+			<div class="space"></div>
+
+			<w-input type="file" :preview="false">
+				数据集文件
+			</w-input>
+
+			<div class="space"></div>
+
+			<div class="right-align">
+				<w-button :disabled="isUploadingDataset"
+				          class="small-margin"
+				          @click="uploadDataset">
+					上传
+				</w-button>
+
+				<w-button bg-color="secondary"
+				          class="small-margin"
+				          :disabled="isUploadingDataset"
+				          @click="isDisplayUploadDatasetModel = false">
 					关闭
 				</w-button>
 			</div>
@@ -184,12 +230,20 @@
 
 <script setup>
 
-import { ref, onMounted } from "vue"
-import WaveUI from "wave-ui"
-import {get, post} from "@/components/networks"
-import {debounce,replace} from "@/components/util"
-import Pagination from "@/components/Pagination.vue";
-import CopyIcon from "@/components/CopyIcon.vue";
+import {ref, onMounted} from 'vue'
+import WaveUI from 'wave-ui'
+import {get, post} from '@/components/networks'
+import {callAnyway, debounce, replace} from '@/components/util'
+import Pagination from '@/components/Pagination.vue'
+import CopyIcon from '@/components/CopyIcon.vue'
+
+const emits = defineEmits([
+	'pop-pallet',
+	'open-tab',
+])
+const props = defineProps({
+	initParams: { type: Object, required: false }
+})
 
 const isRefreshingDataset = ref(false)
 const tableModel = ref({
@@ -209,7 +263,7 @@ const inFilterDatasetStatus = ref([])
 const listStatus = ref([
 	{ key: 'Pulling', name: '拉取中', colorText: '#0066ff' },
 	{ key: 'Ready', name: '就绪', colorText: '#22bb00' },
-	{ key: 'Occupied', name: '使用中', colorText: '#4400ff' },
+	// { key: 'Occupied', name: '使用中', colorText: '#4400ff' },
 	{ key: 'Broken', name: '损坏', colorText: '#ff1111' },
 	{ key: 'Logical', name: '仅存档', colorText: '#ff7700' },
 ])
@@ -335,6 +389,36 @@ async function refreshSourceDataset()
 	}
 }
 
+const isGettingLink = ref(false)
+async function viewDataset(dataset)
+{
+	if(isGettingLink.value) return
+	isGettingLink.value = true
+	try
+	{
+		const link = await get({
+			url: '/dataset/view-link',
+			params: { id: dataset.id },
+		})
+		const url = new URL(link)
+		window.open(url, '_blank')
+	}
+	catch(any)
+	{
+		WaveUI.instance.notify('无法查看数据集: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isGettingLink.value = false
+	}
+
+	// todo 本来是准备自己做一个查看功能 想了想直接打开 LabelStudio 算了
+	// emits('open-tab', {
+	// 	tab: Tabs.DatasetView,
+	// 	params: { dataset, page: tableModel.value.page }
+	// })
+}
+
 const isDisplayPullDatasetModal = ref(false)
 const isRequestingPulling = ref(false)
 const inNameDisplay = ref('')
@@ -380,6 +464,31 @@ async function btnPullDatasetModal()
 	}
 }
 
+const isDisplayUploadDatasetModel = ref(false)
+const isUploadingDataset = ref(false)
+const inUploadDatasetFile = ref(null)
+const inUploadDatasetName = ref('')
+async function uploadDataset()
+{
+	if(isUploadingDataset.value) return
+	isUploadingDataset.value = true
+
+	try
+	{
+		throw '测试错误'
+		isDisplayUploadDatasetModel.value = false
+		WaveUI.instance.notify('上传成功', 'success', 3000)
+	}
+	catch (any)
+	{
+		WaveUI.instance.notify('上传数据集出错: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isUploadingDataset.value = false
+	}
+}
+
 async function deleteDataset(item)
 {
 	try
@@ -402,13 +511,21 @@ async function deleteDataset(item)
 }
 
 onMounted(() => {
-	refreshDataset().finally(() => {})
-	refreshDataSource().finally(() => {})
-})
+	const page = props.initParams?.page
+	if(page == null)
+	{
+		callAnyway(refreshDataset)
+	}
+	else
+	{
+		replace(tableModel.value.items, page.records)
+		inFilterDatasetName.value = page.filterName
+		replace(inFilterDatasetStatus.value, page.filterStatus)
+		tableModel.value.page = page
+	}
 
-defineEmits([
-	'pop-pallet'
-])
+	callAnyway(refreshDataSource)
+})
 
 
 </script>

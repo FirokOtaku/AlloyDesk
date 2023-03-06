@@ -10,7 +10,7 @@
     </parent>
     <groupId>firok.spring.alloydesk</groupId>
     <artifactId>desk-leg</artifactId>
-    <version>0.10.0</version>
+    <version>0.11.0</version>
     <name>desk-leg</name>
     <description>desk-leg</description>
     <properties>
@@ -68,7 +68,7 @@
         <dependency>
             <groupId>firok</groupId>
             <artifactId>topaz</artifactId>
-            <version>5.0.0</version>
+            <version>5.1.0</version>
         </dependency>
         <dependency>
             <groupId>firok.spring</groupId>

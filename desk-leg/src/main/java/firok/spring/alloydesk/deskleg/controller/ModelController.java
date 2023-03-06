@@ -3,30 +3,43 @@ package firok.spring.alloydesk.deskleg.controller;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
-import firok.spring.alloydesk.deskleg.bean.FrameworkTypeEnum;
-import firok.spring.alloydesk.deskleg.bean.ModelBean;
-import firok.spring.alloydesk.deskleg.bean.TagBean;
-import firok.spring.alloydesk.deskleg.bean.TagTypeEnum;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import firok.spring.alloydesk.deskleg.bean.*;
 //import firok.spring.alloydesk.deskleg.mapper.ModelMultiMapper;
+import firok.spring.alloydesk.deskleg.config.MmdetectionHelper;
+import firok.spring.alloydesk.deskleg.service_multi.DatasetMultiService;
 import firok.spring.alloydesk.deskleg.service_multi.ModelMultiService;
 import firok.spring.alloydesk.deskleg.service_multi.TagMultiService;
+import firok.topaz.function.MayConsumer;
+import firok.topaz.platform.NativeProcess;
+import firok.topaz.resource.Files;
 import firok.topaz.spring.Ret;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpRequest;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.server.ServerHttpResponse;
+import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipOutputStream;
 
 import static firok.topaz.general.Collections.sizeOf;
+import static firok.topaz.resource.Files.unixPathOf;
 
 @CrossOrigin
 @RestController
@@ -43,6 +56,15 @@ public class ModelController
 
 	@Autowired
 	ModelMultiService serviceModelMulti;
+
+	@Autowired
+	DatasetMultiService serviceDatasetMulti;
+
+	@Autowired
+	IService<DatasetBean> serviceDataset;
+
+	@Autowired
+	MmdetectionHelper helper;
 
 	public record SearchResult(Page<ModelBean> page, Map<String, Set<String>> mapModelTags) { }
 	/**
@@ -182,13 +204,135 @@ public class ModelController
 		}
 	}
 
-	@PostMapping("/test-one")
-	@CrossOrigin
-	public Ret<?> test(
-//			HttpRequest request
+	@Value("${firok.spring.alloydesk.mmdetection-pre-script}")
+	String preScript;
+
+	@SuppressWarnings("ResultOfMethodCallIgnored")
+	@PostMapping("/test")
+	public void test(
+			@RequestPart("modelId") String modelId,
+			@RequestParam("datasetId") String datasetId,
+			@RequestPart("files") MultipartFile[] files,
+			ServletServerHttpResponse response
 	)
 	{
-//		System.out.println(request);
-		return Ret.success();
+		var uuid = UUID.randomUUID().toString(); // 本次测试任务的唯一 id
+		File folderTest = null;
+		OutputStream os;
+		try { os = response.getBody(); }
+		catch (Exception any) { throw new RuntimeException(any); }
+
+		try(
+				os;
+				var ozs = new ZipOutputStream(os)
+		)
+		{
+			folderTest = serviceModelMulti.folderOfModelTest(uuid);
+			folderTest.mkdirs();
+
+			var model = serviceModel.getById(modelId);
+			if(model == null)
+				throw new IllegalArgumentException("不存在的模型");
+			var dataset = serviceDataset.getById(datasetId);
+			if(dataset == null)
+				throw new IllegalArgumentException("不存在的数据集");
+			var fileModel = serviceModelMulti.fileOfModel(modelId);
+			if(!fileModel.exists())
+				throw new IllegalArgumentException("模型文件丢失");
+
+			var fileCoco = serviceDatasetMulti.fileOfCocoDatasetAnnotation(datasetId);
+			var folderImage = serviceDatasetMulti.folderOfCocoDatasetImages(datasetId);
+
+			// 转移文件
+			var fileInputs = new File[files.length];
+			var fileOutputs = new File[files.length];
+			for(var step = 0; step < files.length; step++)
+			{
+				var fileRaw = files[step];
+				var fileInput = new File(folderTest, step + ".input.png");
+				var fileOutput = new File(folderTest, step + ".output.png");
+				fileInput.createNewFile();
+				fileRaw.transferTo(fileInput);
+				fileInputs[step] = fileInput;
+				fileOutputs[step] = fileOutput;
+			}
+
+			// 生成测试用脚本
+			var contentTrainScript = helper.generateTrainScript(
+					fileModel,
+					folderTest,
+					fileCoco,
+					folderImage,
+					uuid,
+					"test-task-" + uuid,
+					modelId,
+					datasetId,
+					BigDecimal.ZERO,
+					BigDecimal.ZERO,
+					BigDecimal.ZERO,
+					12
+			);
+			var fileTrainScript = new File(folderTest, "config.py");
+			Files.writeTo(fileTrainScript, contentTrainScript);
+			var contentTestScript = helper.generateTestScript(
+					fileModel,
+					fileTrainScript,
+					fileInputs,
+					fileOutputs
+			);
+			var fileTestScript = new File(folderTest, "test.py");
+			Files.writeTo(fileTestScript, contentTestScript);
+			var contentBatch = """
+                    %s
+                    python "%s"
+                    """.formatted(preScript, unixPathOf(fileTestScript));
+			var fileBatch = new File(folderTest, "run.bat");
+			Files.writeTo(fileBatch, contentBatch);
+
+			// 开始调用本地进程执行测试
+			try(var process = new NativeProcess(
+					unixPathOf(fileBatch),
+					System.out::println,
+					System.err::println
+			))
+			{
+				var result = process.waitFor();
+				if(result != 0) throw new RuntimeException("测试进程未正常结束");
+			}
+
+			// 写入响应头
+			response.setStatusCode(HttpStatus.OK);
+			// 读取执行出来的结果 返回给前台
+			var om = new ObjectMapper();
+
+			ozs.putNextEntry(new ZipEntry("index.json"));
+			var jsonIndex = om.createObjectNode();
+			jsonIndex.put("count", fileOutputs.length);
+			om.writeValue(ozs, jsonIndex);
+			ozs.closeEntry();
+
+			for(var step = 0; step < fileOutputs.length; step++)
+			{
+				try(var ifs = new FileInputStream(fileOutputs[step]))
+				{
+					ozs.putNextEntry(new ZipEntry(String.valueOf(step)));
+					ifs.transferTo(ozs);
+					ozs.closeEntry();
+				}
+			}
+
+			ozs.flush();
+			os.flush();
+		}
+		catch (Exception any)
+		{
+			response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			any.printStackTrace();
+		}
+		finally
+		{
+			if(folderTest != null)
+				FileSystemUtils.deleteRecursively(folderTest);
+		}
 	}
 }

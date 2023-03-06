@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
 import firok.tool.alloywrench.bean.CocoData;
 import firok.topaz.general.RegexPipeline;
+import firok.topaz.resource.Files;
 import jakarta.annotation.PostConstruct;
 import org.intellij.lang.annotations.RegExp;
 import org.jetbrains.annotations.Nullable;
@@ -16,6 +17,8 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
+
+import static firok.topaz.resource.Files.unixPathOf;
 
 @Component
 public class MmdetectionHelper
@@ -52,10 +55,18 @@ public class MmdetectionHelper
 	private static final @RegExp String PatternMaxEpoch = "MAX_EPOCH";
 	private static final @RegExp String PatternCheckpoint = "CHECKPOINT";
 	private static final String TemplateMmdetectionConfig;
+
+	private static final @RegExp String PatternModelFile = "MODEL_FILE";
+	private static final @RegExp String PatternConfigFile = "CONFIG_FILE";
+	private static final @RegExp String PatternTestBatch = "TEST_BATCH";
+	private static final String TemplateMmdetectionTest;
 	static
 	{
-		var cpr = new ClassPathResource("firok/spring/alloydesk/deskleg/template-mmdetection-train.py");
-		try(var ifs = cpr.getInputStream()) { TemplateMmdetectionConfig = new String(ifs.readAllBytes(), StandardCharsets.UTF_8); }
+		var cprTrain = new ClassPathResource("firok/spring/alloydesk/deskleg/template-mmdetection-train.py");
+		try(var ifs = cprTrain.getInputStream()) { TemplateMmdetectionConfig = new String(ifs.readAllBytes(), StandardCharsets.UTF_8); }
+		catch (Exception any) { throw new RuntimeException(any); }
+		var cprTest = new ClassPathResource("firok/spring/alloydesk/deskleg/template-mmdetection-test.py");
+		try(var ifs = cprTest.getInputStream()) { TemplateMmdetectionTest = new String(ifs.readAllBytes(), StandardCharsets.UTF_8); }
 		catch (Exception any) { throw new RuntimeException(any); }
 	}
 
@@ -63,8 +74,8 @@ public class MmdetectionHelper
 	@PostConstruct
 	void postCons() throws Exception
 	{
-		fileTrainPy = new File(folderMmdetection, "tools/train.py").getCanonicalPath().replaceAll("\\\\", "/");
-		fileBaseConfig = new File(folderMmdetection, "configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain_1x_coco.py").getCanonicalPath().replaceAll("\\\\", "/");
+		fileTrainPy = unixPathOf(new File(folderMmdetection, "tools/train.py"));
+		fileBaseConfig = unixPathOf(new File(folderMmdetection, "configs/mask_rcnn/mask_rcnn_r50_caffe_fpn_mstrain_1x_coco.py"));
 		pipeline = new RegexPipeline();
 		for(var pattern : new String[] {
 				PatternWorkDir,
@@ -83,9 +94,16 @@ public class MmdetectionHelper
 				PatternWeightDecay,
 				PatternMaxEpoch,
 				PatternCheckpoint,
+
+				PatternModelFile,
+				PatternConfigFile,
+				PatternTestBatch,
 		}) pipeline.getPattern(pattern);
 	}
 
+	/**
+	 * 生成训练模型所需脚本
+	 * */
 	public String generateTrainScript(
 			@Nullable File fileModel,
 			File folderWorkdir,
@@ -121,7 +139,7 @@ public class MmdetectionHelper
 
 		// 最后的生成工作
 		var map = new HashMap<String, String>();
-		map.put(PatternWorkDir, folderWorkdir.getAbsolutePath().replaceAll("\\\\", "/"));
+		map.put(PatternWorkDir, unixPathOf(folderWorkdir));
 		//noinspection deprecation
 		map.put(PatternGenerateDatetime, new Date().toLocaleString());
 		map.put(PatternTaskId, taskId);
@@ -129,15 +147,47 @@ public class MmdetectionHelper
 		map.put(PatternUsedModel, modelId);
 		map.put(PatternUsedDataset, datasetId);
 		map.put(PatternBaseConfig, fileBaseConfig);
-		map.put(PatternImagePrefix, folderImage.getAbsolutePath().replaceAll("\\\\", "/"));
-		map.put(PatternAnnoFile, fileCoco.getAbsolutePath().replaceAll("\\\\", "/"));
+		map.put(PatternImagePrefix, unixPathOf(folderImage));
+		map.put(PatternAnnoFile, unixPathOf(fileCoco));
 		map.put(PatternClasses, contentTypes);
 		map.put(PatternCountClasses, String.valueOf(countTypes));
 		map.put(PatternLr, lr.toPlainString());
 		map.put(PatternMomentum, momentum.toPlainString());
 		map.put(PatternWeightDecay, weightDecay.toPlainString());
 		map.put(PatternMaxEpoch, String.valueOf(epoch));
-		map.put(PatternCheckpoint, fileModel.getAbsolutePath().replaceAll("\\\\", "/"));
+		map.put(PatternCheckpoint, unixPathOf(fileModel));
 		return pipeline.replaceAll(TemplateMmdetectionConfig, map);
+	}
+
+	/**
+	 * 生成测试模型所需脚本
+	 * */
+	public String generateTestScript(
+			File fileModel,
+			File fileConfig,
+			File[] fileInputs,
+			File[] fileOutputs
+	) throws Exception
+	{
+		var testBatch = new StringBuilder();
+		final int count = fileInputs.length;
+		if(fileInputs.length != fileOutputs.length)
+			throw new IllegalArgumentException("");
+
+		for(var step = 0; step < count; step++)
+		{
+			var fileInput = fileInputs[step];
+			var fileOutput = fileOutputs[step];
+			testBatch.append("""
+                    test('%s', '%s')
+                    """.formatted(unixPathOf(fileInput), unixPathOf(fileOutput)));
+			testBatch.append('\n');
+		}
+
+		var map = new HashMap<String, String>();
+		map.put(PatternConfigFile, unixPathOf(fileConfig));
+		map.put(PatternModelFile, unixPathOf(fileModel));
+		map.put(PatternTestBatch, testBatch.toString());
+		return pipeline.replaceAll(TemplateMmdetectionTest, map);
 	}
 }

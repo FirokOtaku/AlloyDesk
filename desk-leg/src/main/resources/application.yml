@@ -12,6 +12,8 @@ firok:
       folder-model: ./alloy-desk-model
       # 储存任务配置文件之类的目录
       folder-task: ./alloy-desk-task
+      # 模型测试所用临时目录
+      folder-test: ./alloy-desk-test
       # mmdetection 主目录
       # mmdetection 自带的各种脚本都是根据这个路径计算的相对路径
       folder-mmdetection: D:/workspace-firok/workspace-mmlab/mmdetection

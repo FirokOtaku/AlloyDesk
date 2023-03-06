@@ -51,5 +51,19 @@ function post(config = {})
     return handleJavaRet(Object.assign(config, DefaultPostConfig))
 }
 
+function postBlob(config = {})
+{
+    return new Promise((resolve, reject) => {
+        axios(Object.assign(config, DefaultPostConfig))
+            .then(res => {
+                console.log(res) // todo
+                resolve(res)
+            })
+            .catch(err => {
+                reject(err)
+            })
+    })
+}
 
-export { get, post }
+
+export { get, post, postBlob }

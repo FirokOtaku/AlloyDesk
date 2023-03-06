@@ -37,7 +37,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class DeskLegApplication
 {
 	public static final String NAME = "Alloy Desk";
-	public static final Version VERSION = new Version(0, 10, 0);
+	public static final Version VERSION = new Version(0, 11, 0);
 	public static final String AUTHOR = "Firok";
 	public static final String LINK = "https://github.com/FirokOtaku/AlloyDesk";
 

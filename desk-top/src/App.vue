@@ -18,7 +18,7 @@ body
 				<w-button text lg class="ml3" @click="isLeftPanelOpen = true">
 					<span class="material-icons">menu</span>
 				</w-button>
-				<div class="title3 mr3" style="margin-left: 12px">Alloy Desk</div>
+				<div class="title3 mr3" style="margin-left: 12px">Alloy Desk - {{ currentTab.label }}</div>
 				<div class="spacer"></div>
 
 				<w-button @click="isRightPanelOpen = true" outline style="margin-right: 16px">
@@ -37,9 +37,11 @@ body
 
 		<main class="grow">
 			<div class="responsive">
-				<component :is="currentTabClass" ref="refTab"
+				<component :is="currentTabComponent" ref="refTab"
 				           :list-dataset="listPalletDataset"
 				           :list-model="listPalletModel"
+				           :init-params="initTabParams"
+				           @open-tab="openTab($event)"
 				           @pop-pallet="popPallet"
 				           @show-right-panel="isRightPanelOpen = true"/>
 			</div>
@@ -65,41 +67,25 @@ import {computed, ref} from 'vue'
 
 import LeftPanel from "@/components/LeftPanel.vue"
 import RightPanel from "@/components/RightPanel.vue"
-import Tabs from "@/components/tabs"
-import TabModelManagement from '@/components/TabModelManagement.vue'
-import TabDataSourceManagement from '@/components/TabDataSourceManagement.vue'
-import TabDatasetManagement from '@/components/TabDatasetManagement.vue'
-import TabTrainTaskManagement from '@/components/TabTrainTaskManagement.vue'
-import TabIndex from '@/components/TabIndex.vue'
-import TabModelTesting from '@/components/TabModelTesting.vue'
 import WaveUI from 'wave-ui'
+import {Tabs} from '@/components/tabs'
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.Index)
-const currentTabClass = computed(() => {
-	switch(currentTab.value)
-	{
-		case Tabs.Index: return TabIndex
-		case Tabs.DataSourceManagement: return TabDataSourceManagement
-		case Tabs.DatasetManagement: return TabDatasetManagement
-		case Tabs.TrainTaskManagement: return TabTrainTaskManagement
-		case Tabs.ModelManagement: return TabModelManagement
-		case Tabs.ModelTesting: return TabModelTesting
-		default: return null
-	}
-})
-
+const currentTab = ref(Tabs.DatasetManagement)
+const currentTabKey = computed(() => currentTab.value.key)
+const currentTabComponent = computed(() => currentTab.value.component)
+const initTabParams = ref(
+	// null
+)
 const refTab = ref()
-function openTab(tab)
+function openTab(query)
 {
 	isLeftPanelOpen.value = false
-	if(currentTab.value === tab) return
-	currentTab.value = tab
+	if(currentTabKey.value === query.tab.key) return
+	currentTab.value = query.tab
+	initTabParams.value = query.params ?? null
 }
-// const isCurrentTabAcceptPallet = computed(() => {
-// 	const value = refTab.value?.isAcceptPallet ?? false
-// 	return typeof(value) === 'boolean' ? value : (value.value ?? false)
-// })
+
 const currentSelectablePallet = computed(() => refTab.value?.selectablePallet)
 function popPallet(bean)
 {
