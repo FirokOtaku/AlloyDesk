@@ -1,3 +1,4 @@
+<!--suppress ExceptionCaughtLocallyJS -->
 <style scoped>
 
 </style>
@@ -33,9 +34,7 @@
 
 		<w-button bg-color="success-light1"
 		          class="small-margin"
-		          @click="isDisplayUploadDatasetModel = true"
-		          v-if="false">
-			<!-- todo 有空再说 -->
+		          @click="isDisplayUploadDatasetModel = true">
 			上传
 		</w-button>
 	</div>
@@ -60,10 +59,20 @@
 				<div v-else>
 					<div v-if="item.annotationCount >= 0 && item.pictureCount >= 0">
 						<div>
-							<i class="material-icons small-text">collections_bookmarks</i> <span>{{ item.annotationCount }}</span>
+							<i class="material-icons small-text d-inline-block" style="width: 16px">
+								photo_library
+							</i>
+							<span>
+								{{ item.pictureCount }}
+							</span>
 						</div>
 						<div>
-							<i class="material-icons small-text">collections_bookmarks</i> <span>{{ item.annotationCount }}</span>
+							<i class="material-icons small-text d-inline-block" style="width: 16px">
+								collections_bookmarks
+							</i>
+							<span>
+								{{ item.annotationCount }}
+							</span>
 						</div>
 					</div>
 					<span v-else>
@@ -81,25 +90,29 @@
 			</template>
 
 			<template #item-cell.op="{ item, label, header, index }">
-				<w-button class="small-margin" @click="viewDataset(item)">
-					查看
-				</w-button>
+				<div class="right-align">
+					<w-button class="small-margin"
+					          v-if="item.status === 'Ready' && item.pullSourceId !== ''"
+					          @click="viewDataset(item)">
+						查看
+					</w-button>
 
-				<w-button class="small-margin">
-					编辑
-				</w-button>
+					<w-button class="small-margin" v-if="false">
+						编辑
+					</w-button>
 
-				<w-button class="small-margin" @click="$emit('pop-pallet', Object.assign({ palletType: 'dataset' }, item))">
-					暂存
-				</w-button>
+					<w-button class="small-margin" @click="$emit('pop-pallet', Object.assign({ palletType: 'dataset' }, item))">
+						暂存
+					</w-button>
 
-				<w-confirm class="d-inline-block"
-				           bg-color="error"
-				           question="确认删除?"
-				           v-if="item.status !== 'Pulling'"
-				           cancel="删除" confirm="取消" @cancel="deleteDataset(item)">
-					删除
-				</w-confirm>
+					<w-confirm class="d-inline-block"
+					           bg-color="error"
+					           question="确认删除?"
+					           v-if="item.status !== 'Pulling'"
+					           cancel="删除" confirm="取消" @cancel="deleteDataset(item)">
+						删除
+					</w-confirm>
+				</div>
 			</template>
 		</w-table>
 		<div class="space"></div>
@@ -197,15 +210,34 @@
 		        title-class="primary--bg"
 		        content-class="white--bg" style="width: 400px">
 
-			<w-input>
+			<w-input v-model="inUploadDatasetName">
 				名称
 			</w-input>
 
 			<div class="space"></div>
 
-			<w-input type="file" :preview="false">
+			<w-input v-model="inUploadDatasetDesc">
+				描述
+			</w-input>
+
+			<div class="space"></div>
+
+			<w-input type="file" :preview="false" :multiple="false"
+			         v-model="inUploadDatasetFile">
 				数据集文件
 			</w-input>
+
+			<div class="space"></div>
+
+			<div class="select-none">支持上传 .zip 格式文件, 其结构如下:</div>
+			<div class="grey-light5--bg select-none">
+				<div class="ml0">file.zip</div>
+				<div class="ml4">/coco.json <span class="grey small-text italic">COCO 格式索引文件</span></div>
+				<div class="ml4">/images <span class="grey small-text italic">存放图片子目录</span></div>
+				<div class="ml8">/1.jpg</div>
+				<div class="ml8">/2.png</div>
+				<div class="ml8">/...</div>
+			</div>
 
 			<div class="space"></div>
 
@@ -251,7 +283,7 @@ const tableModel = ref({
 		{ label: '名称', key: 'nameDisplay' },
 		{ label: '内容', key: 'content' },
 		{ label: '状态', key: 'status' },
-		{ label: '源', key: 'source' },
+		// { label: '源', key: 'source' },
 		// { label: '备注', key: 'description' },
 		{ label: '操作', key: 'op' },
 	],
@@ -468,16 +500,37 @@ const isDisplayUploadDatasetModel = ref(false)
 const isUploadingDataset = ref(false)
 const inUploadDatasetFile = ref(null)
 const inUploadDatasetName = ref('')
+const inUploadDatasetDesc = ref('')
 async function uploadDataset()
 {
 	if(isUploadingDataset.value) return
 	isUploadingDataset.value = true
 
+	const name = inUploadDatasetName.value ?? ''
+	const desc = inUploadDatasetDesc.value ?? ''
+	const fileSelected = inUploadDatasetFile.value
+
 	try
 	{
-		throw '测试错误'
+		if(name === '') throw '数据集名称不可为空'
+		if(fileSelected == null || fileSelected[0] == null) throw '未选中文件'
+		const { size, file } = fileSelected[0]
+		if(size <= 0) throw '文件大小不可为空'
+
+		const form = new FormData()
+		form.set('name', name)
+		form.set('desc', desc)
+		form.set('file', file)
+		WaveUI.instance.notify('开始上传和处理数据. 如果数据集容量较大则可能耗时较长, 请稍候', 'info', 10000)
+		await post({
+			url: '/dataset/upload',
+			data: form,
+		})
+
 		isDisplayUploadDatasetModel.value = false
 		WaveUI.instance.notify('上传成功', 'success', 3000)
+
+		await refreshDataset(name, ['Pulling', 'Ready'])
 	}
 	catch (any)
 	{

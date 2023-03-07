@@ -112,7 +112,7 @@ async function startTest()
 		for(let step = 0; step < files.length; step++)
 			form.append('files', files[step].file)
 
-		WaveUI.instance.notify('正在启动测试, 这需要一段时间', 'information', 3000)
+		WaveUI.instance.notify('正在启动测试, 这需要一段时间', 'info', 3000)
 
 		const zipBlob = await postBlob({
 			url: '/model/test',

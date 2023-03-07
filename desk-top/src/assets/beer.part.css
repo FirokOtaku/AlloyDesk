@@ -29,6 +29,9 @@
 {
     font-size: 140%;
 }
+.overline{ text-decoration:line-through }
+.underline{ text-decoration:underline }
+.italic{ font-style:italic }
 
 .no-margin {
     margin: 0 !important;

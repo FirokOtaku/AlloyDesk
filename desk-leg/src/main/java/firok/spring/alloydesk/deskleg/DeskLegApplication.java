@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.ComponentScans;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -37,7 +36,7 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 public class DeskLegApplication
 {
 	public static final String NAME = "Alloy Desk";
-	public static final Version VERSION = new Version(0, 12, 0);
+	public static final Version VERSION = new Version(0, 13, 0);
 	public static final String AUTHOR = "Firok";
 	public static final String LINK = "https://github.com/FirokOtaku/AlloyDesk";
 

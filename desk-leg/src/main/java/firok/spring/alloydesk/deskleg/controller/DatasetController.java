@@ -18,12 +18,17 @@ import org.apache.tomcat.util.http.fileupload.FileUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
+import org.springframework.util.FileSystemUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.zip.ZipException;
+import java.util.zip.ZipFile;
 
 import static firok.topaz.general.Collections.*;
 import static firok.topaz.general.Enums.*;
@@ -183,6 +188,125 @@ public class DatasetController
 			{
 				GlobalLock.unlock();
 			}
+		}
+	}
+
+	/**
+	 * 上传数据集
+	 * */
+	@Transactional(rollbackFor = Throwable.class)
+	@SuppressWarnings("ResultOfMethodCallIgnored")
+	@PostMapping("/upload")
+	public Ret<?> upload(
+			@RequestPart("file") MultipartFile fileSource,
+			@RequestPart("name") String name,
+			@RequestPart(value = "desc", required = false) String desc
+	)
+	{
+		var now = new Date();
+		final String datasetId;
+		int countImage, countAnnotation;
+
+		File folderDataset = null, fileZip = null, folderCocoImages = null;
+		try
+		{
+			var bean = new DatasetBean();
+			bean.setStatus(DatasetStatusEnum.Pulling);
+			bean.setCreateUserId(""); // todo
+			bean.setCreateTimestamp(now);
+			bean.setAnnotationCount(-1L);
+			bean.setPictureCount(-1L);
+			bean.setPullTimestamp(now);
+			bean.setPullSourceId("");
+			bean.setPullSourceName("用户上传");
+			bean.setPullSourceProjectName("");
+			bean.setPullSourceProjectId(0L);
+			bean.setNameDisplay(name);
+			bean.setDescription(desc);
+			serviceDataset.save(bean);
+			datasetId = bean.getId();
+
+			folderDataset = serviceDatasetMulti.folderOfDataset(datasetId);
+			folderCocoImages = serviceDatasetMulti.folderOfCocoDatasetImages(folderDataset);
+			folderDataset.mkdirs(); // 要不要执行这一句都是问题
+			folderCocoImages.mkdirs();
+			var om = new ObjectMapper();
+
+			// 先转存临时文件
+			fileZip = new File(folderDataset, "temp.zip");
+			fileZip.createNewFile();
+			fileSource.transferTo(fileZip);
+
+			try(var zip = new ZipFile(fileZip))
+			{
+				// 读取索引文件数据
+				var zipIndex = zip.getEntry("coco.json");
+				CocoData coco;
+				try(var izs = zip.getInputStream(zipIndex))
+				{
+					coco = om.readValue(izs, CocoData.class);
+					if(isEmpty(coco.getCategories()))
+						throw new IllegalArgumentException("数据集不包含类别");
+
+					if((countImage = sizeOf(coco.getImages())) <= 0)
+						throw new IllegalArgumentException("数据集不包含图片");
+					if((countAnnotation = sizeOf(coco.getAnnotations())) <= 0)
+						throw new IllegalArgumentException("数据集不包含标注");
+				}
+
+				// 根据索引 解压图片数据
+				// ZipFile 内部有实例锁 多线程读取是没用的 直接单线程解压吧
+				// https://stackoverflow.com/a/51255107/9907751
+				for(var img : coco.getImages())
+				{
+					var filename = img.getFilename();
+					var entry = zip.getEntry("images/" + filename);
+					if(entry == null)
+						throw new IllegalArgumentException("图片文件缺失 (" + filename + ")");
+
+					var fileImage = new File(folderCocoImages, filename);
+					fileImage.createNewFile();
+					try(
+							var izs = zip.getInputStream(entry);
+							var ofs = new FileOutputStream(fileImage)
+					)
+					{
+						izs.transferTo(ofs);
+					}
+				}
+			}
+
+			// 至此 本地数据准备完成
+			var beanUpdate = new DatasetBean();
+			beanUpdate.setId(datasetId);
+			beanUpdate.setPictureCount((long) countImage);
+			beanUpdate.setAnnotationCount((long) countAnnotation);
+			beanUpdate.setStatus(DatasetStatusEnum.Ready);
+			serviceDataset.updateById(beanUpdate);
+
+			return Ret.success();
+		}
+		catch (Exception any)
+		{
+			String msg;
+			if(any instanceof ZipException ez)
+			{
+				msg = "读取压缩文件出错 (%s)".formatted(ez.getMessage());
+			}
+			else
+			{
+				msg = any.getLocalizedMessage();
+			}
+			if(folderDataset != null)
+				FileSystemUtils.deleteRecursively(folderDataset);
+			any.printStackTrace(System.err);
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			return Ret.fail(msg);
+		}
+		finally
+		{
+			if(fileZip != null && fileZip.exists()) // 删除临时压缩文件
+				fileZip.delete();
 		}
 	}
 

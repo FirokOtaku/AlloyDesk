@@ -33,9 +33,6 @@ server:
   compression:
     enabled: true
   server-header: Alloy Furnace
-#  tomcat:
-#    max-http-form-post-size: 200MB
-#    max-swallow-size: 200MB
 
 #mybatis:
 #  configuration:
@@ -72,11 +69,13 @@ spring:
       enabled: true
       max-file-size: 1GB
       max-request-size: 1GB
-  #  web:
-  #    resources:
-  #      static-locations:
   mvc:
     servlet:
       load-on-startup: 100
-#    static-path-pattern: /static/**
-#    initialization-mode: always
+  h2:
+    console:
+      settings:
+        # 网页H2控制台管理员密码
+        web-admin-password: h2admin
+        # 是否允许外部访问H2控制台
+        web-allow-others: true

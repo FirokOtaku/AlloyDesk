@@ -100,7 +100,7 @@ function popPallet(bean)
 		{
 			if(beanPallet['id'] === bean['id'])
 			{
-				WaveUI.instance.notify('已在暂存区', 'information', 3000)
+				WaveUI.instance.notify('已在暂存区', 'info', 3000)
 				return
 			}
 		}
