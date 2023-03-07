@@ -54,14 +54,12 @@ function post(config = {})
 function postBlob(config = {})
 {
     return new Promise((resolve, reject) => {
-        axios(Object.assign(config, DefaultPostConfig))
-            .then(res => {
-                console.log(res) // todo
-                resolve(res)
-            })
-            .catch(err => {
-                reject(err)
-            })
+        axios(Object.assign(config,  {
+            method: 'post',
+            responseType: 'blob',
+        }))
+        .then(res => resolve(res.data))
+        .catch(err => reject(err))
     })
 }
 

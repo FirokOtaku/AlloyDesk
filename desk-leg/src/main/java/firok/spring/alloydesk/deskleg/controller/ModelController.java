@@ -14,6 +14,7 @@ import firok.topaz.function.MayConsumer;
 import firok.topaz.platform.NativeProcess;
 import firok.topaz.resource.Files;
 import firok.topaz.spring.Ret;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpRequest;
@@ -213,13 +214,13 @@ public class ModelController
 			@RequestPart("modelId") String modelId,
 			@RequestParam("datasetId") String datasetId,
 			@RequestPart("files") MultipartFile[] files,
-			ServletServerHttpResponse response
+			HttpServletResponse response
 	)
 	{
 		var uuid = UUID.randomUUID().toString(); // 本次测试任务的唯一 id
 		File folderTest = null;
 		OutputStream os;
-		try { os = response.getBody(); }
+		try { os = response.getOutputStream(); }
 		catch (Exception any) { throw new RuntimeException(any); }
 
 		try(
@@ -301,14 +302,14 @@ public class ModelController
 			}
 
 			// 写入响应头
-			response.setStatusCode(HttpStatus.OK);
+			response.setStatus(HttpStatus.OK.value());
 			// 读取执行出来的结果 返回给前台
 			var om = new ObjectMapper();
 
 			ozs.putNextEntry(new ZipEntry("index.json"));
 			var jsonIndex = om.createObjectNode();
 			jsonIndex.put("count", fileOutputs.length);
-			om.writeValue(ozs, jsonIndex);
+			ozs.write(jsonIndex.toString().getBytes(StandardCharsets.UTF_8));
 			ozs.closeEntry();
 
 			for(var step = 0; step < fileOutputs.length; step++)
@@ -326,7 +327,7 @@ public class ModelController
 		}
 		catch (Exception any)
 		{
-			response.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR);
+			response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			any.printStackTrace();
 		}
 		finally

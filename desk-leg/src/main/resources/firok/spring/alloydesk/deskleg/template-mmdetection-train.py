@@ -14,10 +14,7 @@ model = dict(
 
 # 修改数据集相关设置
 dataset_type = 'CocoDataset'
-# classes = ('building','bulding_simple','stair','feedlots')
 classes = (CLASSES)
-# img_prefix='D:/workspace-firok/dataset-22120901/images'
-# ann_file='D:/workspace-firok/dataset-22120901/merge-all-coco-remapping-clean.json'
 single_dataset = dict(
         img_prefix='IMG_PREFIX',
         classes=classes,
@@ -39,5 +36,4 @@ optimizer = dict(
 
 runner = dict(type='EpochBasedRunner', max_epochs=MAX_EPOCH) # 108
 
-# load_from = 'D:/workspace-firok/workspace-mmlab/mmdetection/checkpoints/22120901-ep108-ep108.pth'
 load_from = 'CHECKPOINT'

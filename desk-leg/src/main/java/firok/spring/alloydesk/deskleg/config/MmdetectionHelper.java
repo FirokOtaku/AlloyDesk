@@ -32,6 +32,9 @@ public class MmdetectionHelper
 	@Value("${firok.spring.alloydesk.mmdetection-base-model}")
 	File fileBaseModel; // 基础模型文件
 
+	@Value("${firok.spring.alloydesk.test-device}")
+	String testDevice;
+
 
 	String fileTrainPy; // 启动训练使用的脚本文件
 	String fileBaseConfig; // 默认训练配置文件
@@ -59,6 +62,7 @@ public class MmdetectionHelper
 	private static final @RegExp String PatternModelFile = "MODEL_FILE";
 	private static final @RegExp String PatternConfigFile = "CONFIG_FILE";
 	private static final @RegExp String PatternTestBatch = "TEST_BATCH";
+	private static final @RegExp String PatternTestDevice = "TEST_DEVICE";
 	private static final String TemplateMmdetectionTest;
 	static
 	{
@@ -98,6 +102,7 @@ public class MmdetectionHelper
 				PatternModelFile,
 				PatternConfigFile,
 				PatternTestBatch,
+				PatternTestDevice,
 		}) pipeline.getPattern(pattern);
 	}
 
@@ -188,6 +193,7 @@ public class MmdetectionHelper
 		map.put(PatternConfigFile, unixPathOf(fileConfig));
 		map.put(PatternModelFile, unixPathOf(fileModel));
 		map.put(PatternTestBatch, testBatch.toString());
+		map.put(PatternTestDevice, testDevice);
 		return pipeline.replaceAll(TemplateMmdetectionTest, map);
 	}
 }
