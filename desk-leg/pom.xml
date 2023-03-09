@@ -10,13 +10,17 @@
     </parent>
     <groupId>firok.spring.alloydesk</groupId>
     <artifactId>desk-leg</artifactId>
-    <version>0.13.0</version>
+    <version>0.14.0</version>
     <name>desk-leg</name>
     <description>desk-leg</description>
     <properties>
         <java.version>19</java.version>
         <maven.compiler.source>19</maven.compiler.source>
         <maven.compiler.target>19</maven.compiler.target>
+
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding>
     </properties>
     <dependencies>
         <dependency>

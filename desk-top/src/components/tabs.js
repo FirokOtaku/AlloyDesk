@@ -45,11 +45,11 @@ export const Groups = {
     Data: {
         key: 'data',
         label: '数据',
-        tabs: [ Tabs.DataSourceManagement, Tabs.DatasetManagement ]
+        tabs: [ Tabs.DataSourceManagement, Tabs.DatasetManagement, Tabs.ModelManagement ]
     },
     Model: {
         key: 'model',
-        label: '模型',
-        tabs: [ Tabs.ModelManagement, Tabs.TrainTaskManagement, Tabs.ModelTesting, Tabs.InferenceInterfaceManagement ]
+        label: '训练和推理',
+        tabs: [ Tabs.TrainTaskManagement, Tabs.ModelTesting, Tabs.InferenceInterfaceManagement ]
     },
 }

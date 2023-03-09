@@ -1,6 +1,8 @@
 package firok.spring.alloydesk.deskleg.bean;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import firok.spring.dbsculptor.Dubnium;
 import firok.spring.mvci.MVCIntrospective;
@@ -11,7 +13,7 @@ import lombok.Data;
  * */
 @Data
 @MVCIntrospective
-@TableName("d_train_task")
+@TableName(value = "d_train_task", autoResultMap = true)
 @Dubnium(sculpturalScript = """
 create table if not exists d_train_task (
     id varchar(48) not null,
@@ -20,11 +22,13 @@ create table if not exists d_train_task (
     
     display_name varchar(48),
     state varchar(16),
-    source_model_id varchar(48),
+    init_model_id varchar(48),
     current_model_id varchar(48),
-    dataset_id varchar(48),
+    init_dataset_id varchar(48),
+	current_dataset_id varchar(48),
     storage_method varchar(16),
     process_control_method varchar(16),
+    start_control_method varchar(16),
     framework_type varchar(32),
     config_value json,
     
@@ -72,6 +76,7 @@ public class TrainTaskBean extends BaseBean
 	/**
 	 * 训练配置项
 	 * */
+	@TableField(typeHandler = JacksonTypeHandler.class)
 	private JsonNode configValue;
 
 }

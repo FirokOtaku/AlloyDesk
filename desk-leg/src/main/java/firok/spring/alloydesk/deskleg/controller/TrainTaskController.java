@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import firok.spring.alloydesk.deskleg.bean.*;
+import firok.spring.alloydesk.deskleg.service_multi.LogMultiService;
 import firok.spring.alloydesk.deskleg.service_multi.TrainTaskMultiService;
 import firok.topaz.spring.Ret;
 import jakarta.annotation.PostConstruct;
@@ -31,6 +32,9 @@ public class TrainTaskController
 	@Autowired
 	IService<TrainTaskLogBean> serviceLog;
 
+	@Autowired
+	LogMultiService logger;
+
 	@PostConstruct
 	void postCons()
 	{
@@ -45,11 +49,14 @@ public class TrainTaskController
 			if(setId.isEmpty()) return;
 
 			for(var taskId : setId)
+			{
 				serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "未正常结束, 强制停止");
+				logger.taskLifecycle("未正常结束, 强制停止 (%s)".formatted(taskId));
+			}
 
 			serviceMulti.updateStates(setId, TaskStateEnum.ErrorEnd);
 
-			System.out.printf("更新 %d 个状态错误任务%n", setId.size());
+			logger.systemMaintenance("更新 %d 个状态错误任务%n".formatted(setId.size()));
 		}
 		catch (Exception ignored) { }
 	}
@@ -60,11 +67,14 @@ public class TrainTaskController
 		if(setId.isEmpty()) return;
 
 		for(var taskId : setId)
+		{
 			serviceMulti.addLog(taskId, TrainTaskMultiService.LevelKeypoint, "系统停止, 强制停止");
+			logger.taskLifecycle("系统停止, 强制停止 (%s)".formatted(taskId));
+		}
 
 		serviceMulti.updateStates(setId, TaskStateEnum.ErrorEnd);
 
-		System.out.printf("停止 %d 个未停止任务%n", setId.size());
+		logger.systemMaintenance("停止 %d 个未停止任务%n".formatted(setId.size()));
 	}
 
 	public record CreateMmdetectionTaskParam(
@@ -146,6 +156,25 @@ public class TrainTaskController
 		try
 		{
 			serviceMulti.deleteTask(taskId);
+			return Ret.success();
+		}
+		catch (Exception any)
+		{
+			TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+			any.printStackTrace(System.err);
+			return Ret.fail(any);
+		}
+	}
+
+	@GetMapping("/start")
+	@Transactional(rollbackFor = Throwable.class)
+	public Ret<?> startTask(
+			@RequestParam("id") String taskId
+	)
+	{
+		try
+		{
+			serviceMulti.startTask(taskId);
 			return Ret.success();
 		}
 		catch (Exception any)

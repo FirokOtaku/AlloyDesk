@@ -71,7 +71,7 @@ import WaveUI from 'wave-ui'
 import {Tabs} from '@/components/tabs'
 
 const isLeftPanelOpen = ref(false)
-const currentTab = ref(Tabs.DatasetManagement)
+const currentTab = ref(Tabs.TrainTaskManagement)
 const currentTabKey = computed(() => currentTab.value.key)
 const currentTabComponent = computed(() => currentTab.value.component)
 const initTabParams = ref(

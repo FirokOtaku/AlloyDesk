@@ -1,5 +1,9 @@
 <style scoped>
-
+#create-task-modal
+{
+	transition: height 0.5s ease;
+	overflow: hidden;
+}
 </style>
 
 <template>
@@ -29,8 +33,25 @@
 		</w-button>
 	</div>
 
-	<div v-show="isDisplayCreateTaskModal">
+	<div id="create-task-modal"
+	     :style="{height: isDisplayCreateTaskModal ? '560px' : '0'}">
 		<w-card class="small-padding">
+			<w-input v-model="inCreateTaskName" :disabled="isCreatingTask">
+				任务名称
+			</w-input>
+
+			<div class="medium-space"></div>
+
+			<w-select no-unselect
+			          :disabled="isCreatingTask"
+			          v-model="inCreateTaskStartControlMethod"
+			          :items="ListStartControl"
+								item-value-key="value">
+				启动控制
+			</w-select>
+
+			<div class="space"></div>
+
 			<w-select no-unselect
 			          :disabled="isCreatingTask"
 			          v-model="inCreateTaskDatasetId"
@@ -125,16 +146,20 @@
 				</w-button>
 			</div>
 
-			<w-dialog v-model="isDisplayTrainProcessHelp" width="600" title="训练控制">
-				<dl v-for="HelpInfo in ListAllHelp">
-					<div class="large-text text-bold">{{ HelpInfo.label }}</div>
-					<div class="tiny-space"></div>
-					<template v-for="HelpPart in HelpInfo.value">
-						<dt class="text-bold purple-dark3">{{ HelpPart.label }}</dt>
-						<dd v-for="HelpDesc in HelpPart.desc" v-html="HelpDesc"></dd>
-						<div class="space"></div>
-					</template>
-				</dl>
+			<w-dialog v-model="isDisplayTrainProcessHelp"
+			          width="600"
+			          title="训练控制">
+				<div style="max-height: 80vh; overflow-y: auto; margin: 0; padding: 0">
+					<dl v-for="HelpInfo in ListAllHelp">
+						<div class="large-text text-bold">{{ HelpInfo.label }}</div>
+						<div class="tiny-space"></div>
+						<template v-for="HelpPart in HelpInfo.value">
+							<dt class="text-bold purple-dark3">{{ HelpPart.label }}</dt>
+							<dd v-for="HelpDesc in HelpPart.desc" v-html="HelpDesc"></dd>
+							<div class="space"></div>
+						</template>
+					</dl>
+				</div>
 			</w-dialog>
 
 		</w-card>
@@ -156,7 +181,9 @@
 				<!-- todo -->
 			</w-button>
 
-			<w-button v-if="item.state === 'WaitingStart'" :disabled="true" class="mr2">
+			<w-button v-if="item.state === 'WaitingStart'"
+			          class="mr2" :disabled="isRefreshingTaskList || isRequestingStart"
+			          @click="startTask(item)">
 				启动
 			</w-button>
 
@@ -266,6 +293,38 @@ const ListModelSave = ref([
 		],
 	},
 ])
+const ListStartControl = ref([
+	{
+		label: '自动',
+		value: 'auto',
+		desc: [
+			`如果当前没有正在运行的其它训练任务, 此任务将会在创建后自动启动`,
+			`或当某个任务结束后可能被自动启动`
+		],
+	},
+	{
+		label: '立刻启动',
+		value: 'now',
+		desc: [
+			`任务创建后立刻启动`,
+			`<span class="small-text yellow-dark3">同时启动多个任务可能导致系统卡顿或训练任务卡死</span>`,
+		],
+	},
+	{
+		label: '计划启动',
+		value: 'planned',
+		desc: [
+			`任务将在指定时间点启动`
+		],
+	},
+	{
+		label: '手动启动',
+		value: 'wait',
+		desc: [
+			`任务创建后只能手动启动, 不会自动启动`
+		],
+	},
+])
 const ListLabeling = ref([
 	{
 		label: '',
@@ -278,6 +337,7 @@ const ListLabeling = ref([
 	},
 ])
 const ListAllHelp = ref([
+	{ label: '启动控制', value: ListStartControl.value },
 	{ label: '训练过程', value: ListTrainProcess.value },
 	{ label: '保存数据', value: ListModelSave.value },
 	{ label: '模型标签', value: ListLabeling.value },
@@ -339,11 +399,13 @@ function goPage(page)
 	refreshTaskList(name, status, page)
 }
 
+const inCreateTaskName = ref('')
 const inCreateTaskDatasetId = ref({})
 const inCreateTaskModelId = ref({})
 const inCreateTaskProcessControlMethod = ref('roundX')
 const inCreateTaskScript = ref('')
 const inCreateTaskModelStorageMethod = ref('saveEnd')
+const inCreateTaskStartControlMethod = ref('auto')
 const inCreateTaskCustomLabel = ref('')
 const inCreateTaskCustomLabelSet = ref(new Set())
 const inCreateTaskEpochX = ref(12)
@@ -370,12 +432,19 @@ async function createTask()
 	const processControlMethod = inCreateTaskProcessControlMethod.value
 	const script = inCreateTaskScript.value
 	const modelStorageMethod = inCreateTaskModelStorageMethod.value
+	const startControlMethod = inCreateTaskStartControlMethod.value
 	const labelSet = [...inCreateTaskCustomLabelSet.value]
 	const epochX = inCreateTaskEpochX.value
 	const epochY = inCreateTaskEpochY.value
+	const name = inCreateTaskName.value
 
 	try
 	{
+		if(name.trim().length === 0)
+		{
+			WaveUI.instance.notify('任务名称不可为空', 'error', 5000)
+			return
+		}
 		if(typeof(datasetId) !== 'string' || datasetId === '')
 		{
 			WaveUI.instance.notify('未选中数据集', 'error', 5000)
@@ -395,13 +464,15 @@ async function createTask()
 		await post({
 			url: '/task/create-mmdetection',
 			data: {
-				datasetId, modelId,
+				initDatasetId: datasetId,
+				initModelId: modelId,
 				processControlMethod,
 				modelStorageMethod,
+				startControlMethod,
 				labels: labelSet,
 				script, epochX, epochY,
 				frameworkType: 'mmdetection',
-				displayName: '测试名称', // todo
+				displayName: name,
 				lr: '0.0025',
 				momentum: '0.9',
 				weightDecay: '0.0001',
@@ -471,6 +542,33 @@ async function deleteTask(task)
 		await refreshTaskList()
 	}
 }
+const isRequestingStart = ref(false)
+async function startTask(task)
+{
+	if(isRequestingStart.value) return
+	isRequestingStart.value = true
+
+	try
+	{
+		const taskId = task.id
+		await get({
+			url: '/task/start',
+			params: { id: taskId }
+		})
+		WaveUI.instance.notify('请求成功, 任务正在启动', 'success', 5000)
+	}
+	catch(any)
+	{
+		WaveUI.instance.notify('启动任务失败: ' + any, 'error', 5000)
+	}
+	finally
+	{
+		isRequestingStart.value = false
+
+		await refreshTaskList()
+	}
+}
+
 
 onMounted(() => triggerRefreshTaskList())
 </script>

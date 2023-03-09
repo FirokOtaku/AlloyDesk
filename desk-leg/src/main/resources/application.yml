@@ -6,6 +6,8 @@ firok:
       runtime:
         enable-mapper-config: true
     alloydesk:
+      logger:
+        print-console: true
       # 储存数据集的目录
       folder-dataset: ./alloy-desk-dataset
       # 储存模型的目录
@@ -51,7 +53,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/alloy-desk?serverTimezone=GMT%2B8&useUnicode=true&characterEncoding=utf8&allowMultiQueries=true&zeroDateTimeBehavior=convertToNull
 #    driver-class-name: org.h2.Driver
-#    url: jdbc:h2://~/alloy-desk.db
+#    url: jdbc:h2://~/alloy-desk.db;AUTO_SERVER=TRUE
     username: root
     password: root
     type: com.zaxxer.hikari.HikariDataSource
@@ -79,3 +81,4 @@ spring:
         web-admin-password: h2admin
         # 是否允许外部访问H2控制台
         web-allow-others: true
+      enabled: true

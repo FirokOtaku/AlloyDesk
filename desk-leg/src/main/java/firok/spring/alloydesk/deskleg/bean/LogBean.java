@@ -1,5 +1,7 @@
 package firok.spring.alloydesk.deskleg.bean;
 
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import firok.spring.dbsculptor.Dubnium;
 import firok.spring.mvci.MVCIntrospective;
@@ -20,13 +22,15 @@ create table if not exists d_log (
     create_user_id varchar(48) not null,
     
     log_type varchar(48),
-    log_info varchar(128),
+    log_info varchar(256),
     
     primary key(id)
 );
 """)
 public class LogBean extends BaseBean
 {
+	@TableId(value = "id", type = IdType.INPUT)
+	String id;
 	/**
 	 * 日志类型
 	 * */

@@ -10,9 +10,11 @@ import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
 import firok.topaz.platform.NativeProcess;
 import firok.topaz.resource.Files;
 import firok.topaz.spring.Ret;
+import firok.topaz.thread.Threads;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.FileSystemUtils;
@@ -23,6 +25,8 @@ import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+
+import static firok.topaz.general.Collections.isEmpty;
 
 /**
  * 所有需要更新任务数据的操作都是通过这个服务进行
@@ -53,7 +57,7 @@ public class TrainTaskMultiService
 			GlobalLock.lock();
 			var uw = new UpdateWrapper<TrainTaskBean>().lambda()
 					.set(TrainTaskBean::getState, state)
-					.in(TrainTaskBean::getState, setId);
+					.in(TrainTaskBean::getId, setId);
 			serviceTask.update(uw);
 		}
 		finally
@@ -77,6 +81,9 @@ public class TrainTaskMultiService
 		}
 	}
 
+	@Autowired
+	LogMultiService logger;
+
 	public void addLog(String taskId, int level, String content)
 	{
 		var now = new Date();
@@ -86,6 +93,8 @@ public class TrainTaskMultiService
 		bean.setLogValue(content);
 		bean.setCreateTimestamp(now);
 		bean.setCreateUserId(""); // todo
+
+		logger.taskLifecycle("%s (%s,%d)".formatted(content, taskId, level));
 
 		try
 		{
@@ -102,11 +111,41 @@ public class TrainTaskMultiService
 	 * 定时器
 	 * 检查所有的数据集
 	 * */
-	public void tick()
+	@Scheduled(initialDelay = 10000, fixedRate = 10000)
+	void tick()
 	{
-		;
-	}
+		try
+		{
+			GlobalLock.lock();
 
+			var qwRunning = new QueryWrapper<TrainTaskBean>().lambda()
+					.in(TrainTaskBean::getState, TaskStateEnum.Running, TaskStateEnum.Starting, TaskStateEnum.Stopping);
+			var countRunning = serviceTask.count(qwRunning);
+			if(countRunning > 0) return; // 有正在进行的其它任务
+
+			var qwUnstarted = new QueryWrapper<TrainTaskBean>().lambda()
+					.eq(TrainTaskBean::getState, TaskStateEnum.WaitingStart)
+					.eq(TrainTaskBean::getStartControlMethod, TaskStartControlEnum.Auto);
+			var listUnstarted = serviceTask.list(qwUnstarted);
+			if(isEmpty(listUnstarted)) return; // 没有需要开始的任务
+
+			var task = listUnstarted.get(0);
+			var taskId = task.getId();
+			addLog(taskId, LevelKeypoint, "由循环刻自动启动任务");
+//			addLog(taskId, LevelKeypoint, "测试阶段, 不启动实际子进程"); // todo
+			updateState(taskId, TaskStateEnum.Starting);
+			startTask(task);
+		}
+		catch (Exception any)
+		{
+			System.out.println("任务管理循环刻出错");
+			any.printStackTrace(System.err);
+		}
+		finally
+		{
+			GlobalLock.unlock();
+		}
+	}
 	@Autowired
 	IService<ModelBean> serviceModel;
 	@Autowired
@@ -179,7 +218,6 @@ public class TrainTaskMultiService
 			var frameworkType = params.frameworkType();
 			var modelId = params.initModelId();
 			var datasetId = params.initDatasetId();
-			var startControlMethod = params.startControlMethod();
 
 			var om = new ObjectMapper();
 			var config = om.createObjectNode();
@@ -213,19 +251,6 @@ public class TrainTaskMultiService
 			serviceTag.setTagValues(taskId, TagTypeEnum.TaskGenerateModelTag, params.labels());
 
 			addLog(taskId, LevelKeypoint, "任务创建完成");
-
-			var shouldStartNow = switch(startControlMethod)
-			{
-				case Now -> true;
-				case Auto -> {
-					var qw = new QueryWrapper<TrainTaskBean>().lambda()
-							.in(TrainTaskBean::getState, TaskStateEnum.Running, TaskStateEnum.Starting, TaskStateEnum.Stopping);
-					var count = serviceTask.count(qw);
-					yield count <= 0;
-				}
-				case null, default -> false;
-			};
-			if(shouldStartNow) startTask(taskId);
 		}
 		finally
 		{
@@ -233,33 +258,36 @@ public class TrainTaskMultiService
 		}
 	}
 
-	public void startTask(String taskId) throws Exception
+	public void startTask(String taskId)
 	{
 		try
 		{
 			GlobalLock.lock();
 
-			var bean = serviceTask.getById(taskId);
-			switch (bean == null ? null : bean.getState())
-			{
-				case null -> throw new IllegalArgumentException("任务不存在");
-				case Starting -> throw new IllegalStateException("任务正在启动");
-				case Stopping -> throw new IllegalStateException("任务正在停止");
-				case Running -> throw new IllegalStateException("任务正在运行");
-				case ShutdownEnd, ErrorEnd, SuccessfulEnd -> throw new IllegalStateException("任务已经停止");
-				default -> {
-					updateState(taskId, TaskStateEnum.Starting);
-
-					var thread = new MmdetectionTrainThread(taskId);
-					mapContext.put(taskId, thread);
-				}
-			}
+			var task = serviceTask.getById(taskId);
+			startTask(task);
 		}
 		finally
 		{
 			GlobalLock.unlock();
 		}
-
+	}
+	private void startTask(TrainTaskBean task)
+	{
+		switch (task == null ? null : task.getState())
+		{
+			case null -> throw new IllegalArgumentException("任务不存在");
+			case Starting -> throw new IllegalStateException("任务正在启动");
+			case Stopping -> throw new IllegalStateException("任务正在停止");
+			case Running -> throw new IllegalStateException("任务正在运行");
+			case ShutdownEnd, ErrorEnd, SuccessfulEnd -> throw new IllegalStateException("任务已经停止");
+			default -> {
+				var taskId = task.getId();
+				var thread = new MmdetectionTrainThread(task);
+				mapContext.put(taskId, thread);
+				thread.start();
+			}
+		}
 	}
 
 	@Autowired
@@ -267,31 +295,33 @@ public class TrainTaskMultiService
 
 	private class MmdetectionTrainThread extends Thread
 	{
+		final TrainTaskBean task;
 		final String taskId;
-		MmdetectionTrainThread(String taskId)
+		MmdetectionTrainThread(TrainTaskBean task)
 		{
-			this.taskId = taskId;
+			this.task = task;
+			taskId = task.getId();
+			this.setDaemon(true);
 		}
 
-		NativeProcess process;
 		int currentEpochY;
 		@Override
-		public void run() // 这个方法进来的时候 任务的状态已经是 Starting 了
+		public void run()
 		{
 			TaskStateEnum stateFinal = TaskStateEnum.ErrorEnd;
 			File folderTask = null;
 			try
 			{
 				// 初始化上下文
-				currentEpochY = 0;
-				final TrainTaskBean task;
-				final var taskModelTags = new HashSet<String>();
+				final HashSet<String> taskModelTags;
 				try
 				{
 					GlobalLock.lock();
 
-					task = serviceTask.getById(taskId);
-					if(task == null) throw new IllegalArgumentException("任务不存在");
+					currentEpochY = 0;
+					taskModelTags = new HashSet<>();
+					updateState(taskId, TaskStateEnum.Running);
+
 					folderTask = folderOfTask(taskId);
 
 					taskModelTags.add("任务生成");
@@ -473,16 +503,22 @@ public class TrainTaskMultiService
 						case Round1X -> true;
 						case RoundXY -> currentEpochY == epochY;
 					};
+
+					addLog(taskId, LevelKeypoint, "任务进入下一轮: %s (%s)".formatted(shouldContinue ? "是" : "否", taskId));
 				}
 
+				addLog(taskId, LevelKeypoint, "任务执行完成 (%s)".formatted(taskId));
 				stateFinal = TaskStateEnum.SuccessfulEnd;
 			}
 			catch (InterruptedException stopSignal) // 用户手动停止
 			{
+				addLog(taskId, LevelKeypoint, "任务被手动停止 (%s)".formatted(taskId));
 				stateFinal = TaskStateEnum.ShutdownEnd;
 			}
 			catch (Exception any) // 遇到其它运行错误
 			{
+				addLog(taskId, LevelKeypoint, "任务执行出错 (%s)".formatted(any.getLocalizedMessage()));
+				any.printStackTrace(System.err);
 				stateFinal = TaskStateEnum.ErrorEnd;
 			}
 			finally // 任务执行完成 清理任务工作目录
@@ -492,8 +528,14 @@ public class TrainTaskMultiService
 				if(folderTask != null)
 					FileSystemUtils.deleteRecursively(folderTask);
 
+				GlobalLock.lock();
+				mapContext.remove(taskId);
+				GlobalLock.unlock();
+
 				// 至此 任务结束
 				updateState(taskId, stateFinal);
+
+				addLog(taskId, LevelKeypoint, "任务线程结束 (%s)".formatted(taskId));
 			}
 		}
 	}
@@ -549,7 +591,7 @@ public class TrainTaskMultiService
 			GlobalLock.lock();
 
 			var task = serviceTask.getById(taskId);
-			if (Objects.requireNonNull(task.getState()) == TaskStateEnum.Running)
+			if (mapContext.containsKey(taskId) || Objects.requireNonNull(task.getState()) == TaskStateEnum.Running)
 			{
 				throw new IllegalStateException("任务正在运行, 无法删除");
 			}
