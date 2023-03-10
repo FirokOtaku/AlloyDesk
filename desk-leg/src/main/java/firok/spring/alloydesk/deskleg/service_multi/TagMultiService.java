@@ -21,7 +21,7 @@ public class TagMultiService
 		var qwTagId = new QueryWrapper<TagBean>().lambda()
 				.select(TagBean::getTagValue)
 				.eq(TagBean::getTagType, type)
-				.eq(TagBean::getId, targetId);
+				.eq(TagBean::getTargetId, targetId);
 		var list = service.list(qwTagId);
 		return list.stream().map(TagBean::getTagValue).collect(Collectors.toSet());
 	}

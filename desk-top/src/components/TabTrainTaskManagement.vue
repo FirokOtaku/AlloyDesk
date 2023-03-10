@@ -34,7 +34,7 @@
 	</div>
 
 	<div id="create-task-modal"
-	     :style="{height: isDisplayCreateTaskModal ? '560px' : '0'}">
+	     :style="{height: isDisplayCreateTaskModal ? '600px' : '0'}">
 		<w-card class="small-padding">
 			<w-input v-model="inCreateTaskName" :disabled="isCreatingTask">
 				任务名称
@@ -163,8 +163,9 @@
 			</w-dialog>
 
 		</w-card>
-		<div class="tiny-space"></div>
 	</div>
+
+	<div class="space"></div>
 
 	<w-table :headers="tableModel.headers"
 	         :items="tableModel.items" fixed-headers
@@ -175,10 +176,9 @@
 			</template>
 		</template>
 		<template #item-cell.op="{ item }">
-			<w-button v-if="false"
-			          class="small-margin">
+			<w-button class="small-margin"
+			          @click="checkTask(item)">
 				查看
-				<!-- todo -->
 			</w-button>
 
 			<w-button v-if="item.state === 'WaitingStart'"
@@ -187,18 +187,16 @@
 				启动
 			</w-button>
 
-			<w-button
+			<w-button v-if="item.state === 'Running'"
 			          :disabled="isRefreshingTaskList || isRequestingShutdown"
 			          @click="shutdownTask(item)">
 				停止
-<!--				v-if="item.state === 'Running'" -->
 			</w-button>
 
-			<w-button
+			<w-button v-else-if="item.state === 'WaitingStart' || item.state.endsWith('End')"
 			          :disabled="isRefreshingTaskList || isRequestingDelete"
 			          @click="deleteTask(item)">
 				删除
-<!--				v-else-if="item.state === 'WaitingStart' || item.state.endsWith('End')" -->
 			</w-button>
 		</template>
 	</w-table>
@@ -207,12 +205,124 @@
 	<div class="center-align">
 		<Pagination :page="tableModel.page" :disabled="isRefreshingTaskList" @go-page="goPage"/>
 	</div>
+
+	<w-dialog :model-value="contextCheckingTask != null"
+	          @before-close="contextCheckingTask = null"
+	          width="700"
+	          title="任务信息">
+		<div v-if="contextCheckingTask != null">
+			<w-card>
+				<table class="pl2">
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">任务名称</td>
+						<td class="pl4">{{contextCheckingTask.task.displayName}}</td>
+
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">类型</td>
+						<td class="pl4">{{contextCheckingTask.task.frameworkType}}</td>
+					</tr>
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">创建时间</td>
+						<td class="pl4">
+							{{
+								contextCheckingTask?.task?.createTimestamp != null ?
+								new Date(contextCheckingTask.task.createTimestamp).toLocaleString() :
+								''
+							}}
+						</td>
+
+						<td class="grey-dark1 small-text right-align top-align tiny-padding" rowspan="4">参数</td>
+						<td class="pl4 pt2 small-padding" rowspan="4">
+							<pre class="grey-light5--bg small-padding"><code>{{
+									contextCheckingTask?.task?.configValue != null ?
+										JSON.stringify(contextCheckingTask?.task?.configValue, null, 2) :
+										''
+								}}</code></pre>
+						</td>
+					</tr>
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">启动控制</td>
+						<td class="pl4">
+							<template v-for="StartControl in ListStartControl">
+								<span v-if="StartControl.value === contextCheckingTask.task.startControlMethod">
+									{{StartControl.label}}
+								</span>
+							</template>
+						</td>
+					</tr>
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">模型存储</td>
+						<td class="pl4">
+							<template v-for="ModelSave in ListModelSave">
+								<span v-if="ModelSave.value === contextCheckingTask.task.storageMethod">
+									{{ModelSave.label}}
+								</span>
+							</template>
+						</td>
+					</tr>
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">流程控制</td>
+						<td class="pl4">
+							<template v-for="ProcessControl in ListTrainProcess">
+								<span v-if="ProcessControl.value === contextCheckingTask.task.processControlMethod">
+									{{ProcessControl.label}}
+								</span>
+							</template>
+						</td>
+					</tr>
+					<tr>
+						<td class="grey-dark1 small-text right-align top-align tiny-padding">状态</td>
+						<td class="pl4">
+							<template v-for="Status in ListStatus">
+								<span v-if="Status.value === contextCheckingTask.task.state">
+									{{Status.label}}
+								</span>
+							</template>
+						</td>
+
+						<td colspan="2" class="left-align">
+							<w-button sm
+							          :loading="contextCheckingTask.statusLog === 'pulling'"
+							          :disabled="contextCheckingTask.statusLog === 'pulling'"
+							          @click="requestTaskLogs">
+								刷新日志
+							</w-button>
+						</td>
+					</tr>
+				</table>
+			</w-card>
+
+			<div class="tiny-space"></div>
+
+			<w-table :headers="logModel.headers"
+			         :fixed-layout="true"
+			         :fixed-headers="true"
+			         style="height: 250px"
+			         :items="contextCheckingTask.logs"
+			         :loading="contextCheckingTask.statusLog === 'pulling'">
+				<template #item-cell.createTimestamp="{item}">
+					{{ item.createTimestamp?.toLocaleString() ?? '' }}
+				</template>
+				<template #loading>
+					日志加载中
+				</template>
+				<template #no-data>
+					<span v-if="contextCheckingTask.statusLog === 'finished'">
+						日志为空
+					</span>
+					<span v-else-if="contextCheckingTask.statusLog === 'error'">
+						加载日志错误
+					</span>
+					<span v-else>-</span>
+				</template>
+			</w-table>
+		</div>
+	</w-dialog>
 </div>
 </template>
 
 <script setup>
 
-import {computed, onMounted, ref} from "vue"
+import {onMounted, ref} from "vue"
 import WaveUI from "wave-ui";
 import {get, post} from "@/components/networks";
 import {debounce, replace} from "@/components/util";
@@ -568,6 +678,56 @@ async function startTask(task)
 		isRequestingStart.value = false
 
 		await refreshTaskList()
+	}
+}
+
+const logModel = ref({
+	headers: [
+		{ label: '时间', key: 'createTimestamp', width: '220' },
+		// { label: '等级', key: 'logLevel', width: '80' },
+		{ label: '信息', key: 'logValue' },
+	]
+})
+const contextCheckingTask = ref(null)
+async function checkTask(task)
+{
+	contextCheckingTask.value = {
+		task,
+		logs: [],
+		statusLog: 'no-init', // no-init, pulling, finished, error
+	}
+
+	await requestTaskLogs()
+}
+async function requestTaskLogs()
+{
+	const context = contextCheckingTask.value
+
+	if(context.statusLog === 'pulling') return
+	context.statusLog = 'pulling'
+
+	try
+	{
+		const pageLogs = await get({
+			url: '/task/get-log',
+			params: {
+				taskId: context.task.id,
+				pageSize: 200,
+				level: 100,
+			},
+		})
+		for(const record of pageLogs.records)
+		{
+			record.createTimestamp = record.createTimestamp != null ? new Date(record.createTimestamp) : null
+		}
+		replace(context.logs, pageLogs.records)
+		context.statusLog = 'finished'
+	}
+	catch(any)
+	{
+		WaveUI.instance.notify('读取日志失败: ' + any)
+		replace(context.logs)
+		context.statusLog = 'error'
 	}
 }
 

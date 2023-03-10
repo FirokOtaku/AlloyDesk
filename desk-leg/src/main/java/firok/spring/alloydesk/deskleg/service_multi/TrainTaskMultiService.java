@@ -255,6 +255,9 @@ public class TrainTaskMultiService
 			serviceTag.setTagValues(taskId, TagTypeEnum.TaskGenerateModelTag, params.labels());
 
 			addLog(taskId, LevelKeypoint, "任务创建完成");
+
+			if(params.startControlMethod() == TaskStartControlEnum.Now)
+				startTask(task);
 		}
 		finally
 		{
@@ -395,14 +398,14 @@ public class TrainTaskMultiService
 							if(currentEpochY == 1)
 								yield task.getInitModelId(); // 第一大轮的话就是初始模型
 							// 根据当前大轮轮数获取应该用哪个模型
-							var currentEpochX = currentEpochY * epochX;
+							var currentEpochX = (currentEpochY - 1) * epochX;
 							var modelName = generateModelNameOfTaskEpoch(taskId, displayName, currentEpochX);
 							var listModel = serviceModel.list(
 									new QueryWrapper<ModelBean>().lambda()
 											.eq(ModelBean::getDisplayName, modelName)
 							);
 							if(listModel.isEmpty())
-								throw new IllegalArgumentException("找不到所需模型文件");
+								throw new IllegalArgumentException("找不到所需模型文件 (%s)".formatted(modelName));
 							else if(listModel.size() > 1)
 							{
 								var listName = listModel.stream()
@@ -514,7 +517,7 @@ public class TrainTaskMultiService
 					for(var indexModel : indexModels) // 复制文件
 					{
 						var fileModelSource = fileOfMmdetectionTaskWorkdirCheckpoint(taskId, indexModel);
-						var modelName = generateModelNameOfTaskEpoch(taskId, displayName, indexModel + currentEpochY * epochX);
+						var modelName = generateModelNameOfTaskEpoch(taskId, displayName, indexModel + (currentEpochY - 1) * epochX);
 						var now = new Date();
 						var bean = new ModelBean();
 						bean.setDisplayName(modelName);
@@ -552,18 +555,18 @@ public class TrainTaskMultiService
 					shouldContinue = switch (task.getProcessControlMethod()) {
 						case RoundX -> false;
 						case Round1X -> true;
-						case RoundXY -> currentEpochY == epochY;
+						case RoundXY -> currentEpochY < epochY;
 					};
 
-					addLog(taskId, LevelKeypoint, "任务进入下一轮: %s (%s)".formatted(shouldContinue ? "是" : "否", taskId));
+					addLog(taskId, LevelKeypoint, "任务进入下一轮: %s".formatted(shouldContinue ? "是" : "否"));
 				}
 
-				addLog(taskId, LevelKeypoint, "任务执行完成 (%s)".formatted(taskId));
+				addLog(taskId, LevelKeypoint, "任务执行完成");
 				stateFinal = TaskStateEnum.SuccessfulEnd;
 			}
 			catch (InterruptedException stopSignal) // 用户手动停止
 			{
-				addLog(taskId, LevelKeypoint, "任务被手动停止 (%s)".formatted(taskId));
+				addLog(taskId, LevelKeypoint, "任务被手动停止");
 				stateFinal = TaskStateEnum.ShutdownEnd;
 			}
 			catch (Exception any) // 遇到其它运行错误
@@ -587,7 +590,7 @@ public class TrainTaskMultiService
 				// 至此 任务结束
 				updateState(taskId, stateFinal);
 
-				addLog(taskId, LevelKeypoint, "任务线程结束 (%s)".formatted(taskId));
+				addLog(taskId, LevelKeypoint, "任务线程结束");
 			}
 		}
 
