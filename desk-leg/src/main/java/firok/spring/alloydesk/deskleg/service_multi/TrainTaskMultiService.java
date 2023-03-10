@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import firok.spring.alloydesk.deskleg.bean.*;
 import firok.spring.alloydesk.deskleg.config.MmdetectionHelper;
 import firok.spring.alloydesk.deskleg.controller.TrainTaskController;
+import firok.topaz.function.MayRunnable;
 import firok.topaz.platform.NativeProcess;
 import firok.topaz.resource.Files;
 import firok.topaz.spring.Ret;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.util.FileSystemUtils;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -30,6 +32,9 @@ import static firok.topaz.general.Collections.isEmpty;
 
 /**
  * 所有需要更新任务数据的操作都是通过这个服务进行
+ * <p>
+ *     fixme high 这玩意问题大了 什么时候有空直接扬了重写吧
+ * </p>
  * */
 @Service
 public class TrainTaskMultiService
@@ -133,7 +138,6 @@ public class TrainTaskMultiService
 			var taskId = task.getId();
 			addLog(taskId, LevelKeypoint, "由循环刻自动启动任务");
 //			addLog(taskId, LevelKeypoint, "测试阶段, 不启动实际子进程"); // todo
-			updateState(taskId, TaskStateEnum.Starting);
 			startTask(task);
 		}
 		catch (Exception any)
@@ -258,6 +262,20 @@ public class TrainTaskMultiService
 		}
 	}
 
+	private static final List<NativeProcess> ListSubProcess = new Vector<>();
+	static
+	{
+		var hook = new Thread(() -> {
+			for(var SubProcess : ListSubProcess)
+			{
+				((MayRunnable) SubProcess::close)
+						.anyway(false)
+						.run();
+			}
+		});
+		Runtime.getRuntime().addShutdownHook(hook);
+	}
+
 	public void startTask(String taskId)
 	{
 		try
@@ -282,10 +300,21 @@ public class TrainTaskMultiService
 			case Running -> throw new IllegalStateException("任务正在运行");
 			case ShutdownEnd, ErrorEnd, SuccessfulEnd -> throw new IllegalStateException("任务已经停止");
 			default -> {
-				var taskId = task.getId();
-				var thread = new MmdetectionTrainThread(task);
-				mapContext.put(taskId, thread);
-				thread.start();
+				try
+				{
+					GlobalLock.lock();
+					var taskId = task.getId();
+					if(mapContext.get(taskId) != null)
+						throw new IllegalArgumentException("任务已经启动");
+					updateState(taskId, TaskStateEnum.Starting);
+					var thread = new MmdetectionTrainThread(task);
+					mapContext.put(taskId, thread);
+					thread.start();
+				}
+				finally
+				{
+					GlobalLock.unlock();
+				}
 			}
 		}
 	}
@@ -293,7 +322,7 @@ public class TrainTaskMultiService
 	@Autowired
 	TagMultiService serviceTag;
 
-	private class MmdetectionTrainThread extends Thread
+	private class MmdetectionTrainThread extends Thread implements Closeable
 	{
 		final TrainTaskBean task;
 		final String taskId;
@@ -305,6 +334,7 @@ public class TrainTaskMultiService
 		}
 
 		int currentEpochY;
+		NativeProcess process;
 		@Override
 		public void run()
 		{
@@ -320,7 +350,6 @@ public class TrainTaskMultiService
 
 					currentEpochY = 0;
 					taskModelTags = new HashSet<>();
-					updateState(taskId, TaskStateEnum.Running);
 
 					folderTask = folderOfTask(taskId);
 
@@ -388,6 +417,7 @@ public class TrainTaskMultiService
 					var fileModel = serviceModelMulti.fileOfModel(currentModelId);
 					task.setCurrentDatasetId(currentDatasetId);
 					task.setCurrentModelId(currentModelId);
+					task.setState(TaskStateEnum.Running);
 
 					try // 检查数据集和模型状态
 					{
@@ -432,22 +462,43 @@ public class TrainTaskMultiService
                     """.formatted(preScript, fileMmdetectionTrainPy, fileConfig);
 					Files.writeTo(fileBatch, contentBatch);
 					//   创建本地进程并等待其运行结束
-					try(var process = new NativeProcess( // todo 换成其它储存方式
-							fileBatch.getAbsolutePath(),
-							System.out::println,
-							System.err::println
-					))
+					try
 					{
+						synchronized (this)
+						{
+							process = new NativeProcess(
+									fileBatch.getAbsolutePath(),
+									System.out::println,
+									System.err::println
+							);
+							ListSubProcess.add(process);
+						}
 						addLog(taskId, LevelKeypoint, "启动训练");
+
 						int result = process.waitFor();
 						if(result != 0)
 						{
-							addLog(taskId, LevelKeypoint, "训练发生错误");
-							throw new RuntimeException("训练发生错误");
+							addLog(taskId, LevelKeypoint, "训练发生错误 (子进程报错)");
+							throw new RuntimeException("训练发生错误 (子进程报错)");
 						}
 
 						addLog(taskId, LevelKeypoint, "训练结束");
+						synchronized (this)
+						{
+							ListSubProcess.remove(process);
+							process = null;
+						}
 					}
+					catch (RuntimeException any)
+					{
+						throw any;
+					}
+					catch (Exception any)
+					{
+						addLog(taskId, LevelKeypoint, "训练发生错误 (子进程抛出异常)");
+						throw new RuntimeException("训练发生错误 (子进程抛出异常)");
+					}
+
 
 					// 任务执行完一大轮 检查需要保存的模型
 					var indexModels = switch (task.getStorageMethod())
@@ -529,6 +580,7 @@ public class TrainTaskMultiService
 					FileSystemUtils.deleteRecursively(folderTask);
 
 				GlobalLock.lock();
+				//noinspection resource
 				mapContext.remove(taskId);
 				GlobalLock.unlock();
 
@@ -536,6 +588,16 @@ public class TrainTaskMultiService
 				updateState(taskId, stateFinal);
 
 				addLog(taskId, LevelKeypoint, "任务线程结束 (%s)".formatted(taskId));
+			}
+		}
+
+		@Override
+		public void close() throws IOException
+		{
+			synchronized (this)
+			{
+				if(process != null)
+					process.close();
 			}
 		}
 	}
@@ -572,6 +634,7 @@ public class TrainTaskMultiService
 					if(context != null)
 					{
 						context.interrupt();
+						context.close();
 					}
 				}
 				case WaitingStart -> throw new IllegalStateException("任务未开始");
@@ -593,7 +656,7 @@ public class TrainTaskMultiService
 			var task = serviceTask.getById(taskId);
 			if (mapContext.containsKey(taskId) || Objects.requireNonNull(task.getState()) == TaskStateEnum.Running)
 			{
-				throw new IllegalStateException("任务正在运行, 无法删除");
+				shutdownTask(taskId);
 			}
 
 			var folderTask = folderOfTask(taskId);

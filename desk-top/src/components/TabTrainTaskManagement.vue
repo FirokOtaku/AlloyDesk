@@ -187,16 +187,18 @@
 				启动
 			</w-button>
 
-			<w-button v-if="item.state === 'Running'"
+			<w-button
 			          :disabled="isRefreshingTaskList || isRequestingShutdown"
 			          @click="shutdownTask(item)">
 				停止
+<!--				v-if="item.state === 'Running'" -->
 			</w-button>
 
-			<w-button v-else-if="item.state === 'WaitingStart' || item.state.endsWith('End')"
+			<w-button
 			          :disabled="isRefreshingTaskList || isRequestingDelete"
 			          @click="deleteTask(item)">
 				删除
+<!--				v-else-if="item.state === 'WaitingStart' || item.state.endsWith('End')" -->
 			</w-button>
 		</template>
 	</w-table>
