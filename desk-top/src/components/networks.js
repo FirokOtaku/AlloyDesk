@@ -1,12 +1,17 @@
 
-import axios from "axios"
+import Axios from 'axios'
+import qs from 'qs'
 
-axios.defaults.baseURL = import.meta.env.DEV ?
-    'http://localhost:29116/' :
-    '/'
-axios.interceptors.request.use(
-    function (config)
-    {
+const isDev = import.meta.env.DEV
+const axiosGeneral = Axios.create({
+    baseURL: isDev ? 'http://localhost:29118/' : '/',
+})
+const axiosDrawer = Axios.create({
+    baseURL: isDev ? 'http://localhost:29118/drawer' : '/drawer/'
+})
+
+axiosGeneral.interceptors.request.use(
+    config => {
         if (config != null && config.params != null)
         {
             config.url += '?' + qs.stringify(config.params, {indices: false})
@@ -14,16 +19,13 @@ axios.interceptors.request.use(
         }
         return config
     },
-    function (error)
-    {
-        return Promise.reject(error);
-    }
+    error => Promise.reject(error)
 );
 
 function handleJavaRet(config)
 {
     return new Promise((resolve, reject) => {
-        axios(config)
+        axiosGeneral(config)
             .then(({ data }) => {
                 if(data.success) resolve(data.data)
                 else reject(data.msg)
@@ -32,11 +34,6 @@ function handleJavaRet(config)
                 reject(err)
             })
     })
-}
-import qs from 'qs'
-function paramsSerializer (params)
-{
-    return qs.stringify(params, { indices: false } )
 }
 
 
@@ -54,7 +51,7 @@ function post(config = {})
 function postBlob(config = {})
 {
     return new Promise((resolve, reject) => {
-        axios(Object.assign(config,  {
+        axiosGeneral(Object.assign(config,  {
             method: 'post',
             responseType: 'blob',
         }))
@@ -63,5 +60,18 @@ function postBlob(config = {})
     })
 }
 
+function getDrawer(path)
+{
+    return new Promise((resolve, reject) => {
+        axiosDrawer({
+            method: 'get',
+            responseType: 'text',
+            url: path,
+        })
+        .then(res => resolve(res.data))
+        .catch(reject)
+    })
+}
 
-export { get, post, postBlob }
+
+export { get, post, postBlob, getDrawer }

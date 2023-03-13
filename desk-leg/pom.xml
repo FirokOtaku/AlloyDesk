@@ -10,7 +10,7 @@
     </parent>
     <groupId>firok.spring.alloydesk</groupId>
     <artifactId>desk-leg</artifactId>
-    <version>0.16.0</version>
+    <version>0.17.0</version>
     <name>desk-leg</name>
     <description>desk-leg</description>
     <properties>
@@ -152,6 +152,7 @@
     </dependencies>
 
     <build>
+        <finalName>alloy-desk-${project.version}</finalName>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

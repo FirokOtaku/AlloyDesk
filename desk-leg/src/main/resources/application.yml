@@ -27,7 +27,7 @@ firok:
 
 
 server:
-  port: 29116
+  port: 29118
   servlet:
     encoding:
       charset: UTF-8

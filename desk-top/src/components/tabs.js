@@ -8,6 +8,7 @@ import TabTrainTaskManagement from '@/components/TabTrainTaskManagement.vue'
 import TabIndex from '@/components/TabIndex.vue'
 import TabModelTesting from '@/components/TabModelTesting.vue'
 import TabDatasetView from '@/components/TabDatasetView.vue'
+import TabUserManual from '@/components/TabUserManual.vue'
 
 const tabUnknown = shallowRef(TabUnknown)
 const tabModelManagement = shallowRef(TabModelManagement)
@@ -17,6 +18,7 @@ const tabTrainTaskManagement = shallowRef(TabTrainTaskManagement)
 const tabIndex = shallowRef(TabIndex)
 const tabModelTesting = shallowRef(TabModelTesting)
 const tabDatasetView = shallowRef(TabDatasetView)
+const tabUserManual = shallowRef(TabUserManual)
 
 export const Tabs = {
     Unknown: { key: 'unknown', label: '未知', hidden: true, component: tabUnknown },
@@ -32,16 +34,19 @@ export const Tabs = {
 
     UserManagement: { key: 'user-management', label: '用户管理', hidden: false, component: tabUnknown },
     SystemLog: { key: 'system-log', label: '系统日志', hidden: false, component: tabUnknown },
-    UserManual: { key: 'user-manual', label: '用户手册', hidden: false, component: tabUnknown },
+    UserManual: { key: 'user-manual', label: '用户手册', hidden: false, component: tabUserManual },
     Index: { key: 'index', label: '首页', hidden: false, component: tabIndex },
 }
 
-export const Groups = {
+const UnusedGroups = {
     Sys: {
         key: 'sys',
         label: '系统',
-        tabs: [ Tabs.Index, Tabs.UserManagement, Tabs.SystemLog, Tabs.UserManual ]
+        tabs: [ Tabs.Index, /*Tabs.UserManagement,*/ /*Tabs.SystemLog,*/ /*Tabs.UserManual*/ ]
     },
+}
+
+export const Groups = {
     Data: {
         key: 'data',
         label: '数据',
@@ -50,6 +55,6 @@ export const Groups = {
     Model: {
         key: 'model',
         label: '训练和推理',
-        tabs: [ Tabs.TrainTaskManagement, Tabs.ModelTesting, Tabs.InferenceInterfaceManagement ]
+        tabs: [ Tabs.TrainTaskManagement, Tabs.ModelTesting, /*Tabs.InferenceInterfaceManagement*/ ]
     },
 }

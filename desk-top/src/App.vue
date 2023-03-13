@@ -82,8 +82,14 @@ function openTab(query)
 {
 	isLeftPanelOpen.value = false
 	if(currentTabKey.value === query.tab.key) return
+	// if('function' === typeof refTab.value?.onSwitchOut)
+	// 	refTab.value.onSwitchOut()
+
 	currentTab.value = query.tab
 	initTabParams.value = query.params ?? null
+
+	// if('function' === typeof refTab.value?.onSwitchIn)
+	// 	refTab.value.onSwitchIn()
 }
 
 const currentSelectablePallet = computed(() => refTab.value?.selectablePallet)

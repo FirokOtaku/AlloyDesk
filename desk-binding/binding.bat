@@ -12,6 +12,9 @@ rmdir /S /Q "./desk-leg/src/main/resources/static/"
 echo 复制静态资源
 robocopy /E "./desk-top/dist/" "./desk-leg/src/main/resources/static/"
 
+echo 复制文档资源
+robocopy /E "./desk-drawer/" "./desk-leg/src/main/resources/static/drawer/"
+
 echo 打包后台资源
 cd "./desk-leg"
 call mvnw package
